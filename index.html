@@ -1,0 +1,1880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>VirtualFit: Spatial Try-On</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    html, body {
+      height: 100%;
+      width: 100%;
+    }
+    :root {
+      --ease: cubic-bezier(.2, .8, .2, 1);
+      --sans: "Inter", system-ui, -apple-system, sans-serif;
+      --MH: min(78vh, 62vw);
+      --CW: 180px; /* updated dynamically by JS */
+      --room: url('https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20261104_080623_c94c85a3-23d5-4a0c-afff-41be1b5b8191.png&w=2400&q=85');
+      --model: url('https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20261104_080717_e02cb856-b812-4c9b-9b86-8a741c7f65eb.png&w=2688&q=85');
+      --garm: url('https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20261104_080719_f5a4cca2-cf42-4957-ab3b-ddec34d2b71a.png&w=2048&q=85');
+
+      /* Body morph & posture parameters */
+      --body-scale-x: 1;
+      --body-scale-y: 1;
+      --body-rotate: 0deg;
+      --body-trans-y: 0px;
+    }
+    @media (max-width: 767px) {
+      :root {
+        --MH: min(62vh, 128vw);
+      }
+    }
+    body {
+      background: #e9e4dc;
+      color: #fff;
+      font-family: var(--sans);
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    button {
+      font: inherit;
+      color: inherit;
+      background: none;
+      border: none;
+      outline: none;
+    }
+    @media (pointer: fine) {
+      html, body, button, a, input, select {
+        cursor: none !important;
+      }
+    }
+
+    /* 1. ROOM */
+    .room {
+      position: fixed;
+      inset: -3%;
+      background-image: var(--room);
+      background-position: center;
+      background-size: cover;
+      background-repeat: no-repeat;
+      filter: blur(2.5px) saturate(1.05);
+      transform: scale(1.08);
+      pointer-events: none;
+      z-index: 0;
+      will-change: transform;
+    }
+    .room::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(70% 60% at 50% 45%, rgba(255,252,246,.10), rgba(40,30,20,.16));
+    }
+
+    /* 2. GHOST WORD FIT */
+    .ghost {
+      position: fixed;
+      z-index: 2;
+      left: 50%;
+      top: calc(50% - var(--MH) * 0.42);
+      transform: translate(-50%, 0);
+      font-weight: 900;
+      font-size: calc(var(--MH) * 0.42);
+      line-height: 0.8;
+      letter-spacing: -0.04em;
+      color: rgba(255, 255, 255, 0.3);
+      -webkit-text-stroke: 1px rgba(255, 255, 255, 0.35);
+      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+      pointer-events: none;
+      white-space: nowrap;
+      display: flex;
+    }
+    .ghost span {
+      display: inline-block;
+      will-change: transform;
+    }
+
+    /* 3. GLASS MATERIAL */
+    .glass {
+      background: linear-gradient(155deg, rgba(250,248,245,.30), rgba(150,144,136,.20) 48%, rgba(205,200,192,.24));
+      backdrop-filter: blur(22px) saturate(1.5);
+      -webkit-backdrop-filter: blur(22px) saturate(1.5);
+      border: 1px solid rgba(255,255,255,.5);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.7), inset 0 -1px 0 rgba(255,255,255,.12), 0 20px 50px -24px rgba(40,30,20,.45);
+    }
+
+    /* 4. TABS */
+    .tabs {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      top: 4.2vh;
+      z-index: 30;
+      padding: 5px;
+      border-radius: 999px;
+      display: flex;
+      gap: 2px;
+      align-items: center;
+    }
+    .tabs-pill {
+      position: absolute;
+      top: 5px;
+      left: 0;
+      height: 38px;
+      background: rgba(255, 255, 255, 0.92);
+      border-radius: 999px;
+      box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.3);
+      transition: transform 0.6s var(--ease), width 0.6s var(--ease);
+      pointer-events: none;
+      z-index: 1;
+    }
+    .tab-btn {
+      position: relative;
+      z-index: 2;
+      height: 38px;
+      padding: 0 22px;
+      font-weight: 500;
+      font-size: 14px;
+      color: rgba(30, 30, 32, 0.72);
+      transition: color 0.3s ease;
+      white-space: nowrap;
+    }
+    .tab-btn.active {
+      color: #111;
+    }
+
+    /* 5. RAIL */
+    .rail {
+      position: fixed;
+      left: max(18px, 1.8vw);
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 30;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      border-radius: 999px;
+    }
+    .rail-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      transition: background 0.3s ease, color 0.3s ease, transform 0.2s ease;
+      color: rgba(30, 30, 32, 0.8);
+    }
+    .rail-btn svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
+    .rail-btn:hover {
+      background: rgba(255, 255, 255, 0.35);
+    }
+    .rail-btn.active {
+      background: rgba(255, 255, 255, 0.9);
+      color: #111;
+    }
+    .rail-btn .tooltip {
+      position: absolute;
+      left: 54px;
+      background: rgba(20, 20, 22, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 5px 11px;
+      border-radius: 8px;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateX(-6px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      border: 1px solid rgba(255,255,255,0.18);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+      z-index: 40;
+    }
+    .rail-btn:hover .tooltip {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    /* 6. STAGE & ARC */
+    .stage {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      touch-action: pan-y;
+      overflow: hidden;
+    }
+    .arc {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 0;
+      height: 0;
+    }
+    .card {
+      position: absolute;
+      left: calc(-0.5 * var(--CW));
+      top: calc(-0.71 * var(--CW));
+      width: var(--CW);
+      height: calc(var(--CW) * 1.42);
+      border-radius: 22px;
+      overflow: hidden;
+      will-change: transform, opacity, filter;
+      transform-style: flat;
+    }
+    .card .g {
+      position: absolute;
+      left: 8%;
+      right: 8%;
+      top: 5%;
+      height: 66%;
+      background-image: var(--garm);
+      background-size: 320% 212.5%;
+      background-repeat: no-repeat;
+      filter: drop-shadow(0 14px 14px rgba(40, 30, 20, 0.22));
+      pointer-events: none;
+    }
+    .card .card-name {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 17%;
+      text-align: center;
+      font-weight: 500;
+      font-size: calc(var(--CW) * 0.068);
+      color: #fff;
+      text-shadow: 0 1px 8px rgba(0, 0, 0, 0.18);
+      pointer-events: none;
+    }
+    .card .card-price {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 7%;
+      text-align: center;
+      font-weight: 700;
+      font-size: calc(var(--CW) * 0.095);
+      color: #fff;
+      text-shadow: 0 1px 8px rgba(0, 0, 0, 0.18);
+      pointer-events: none;
+    }
+    .sheen {
+      position: absolute;
+      inset: -50%;
+      background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.5) 50%, transparent 60%);
+      pointer-events: none;
+      opacity: 0;
+      transform: translateX(-100%);
+    }
+    .sheen.active {
+      animation: sheenAnim 1s ease-out forwards;
+    }
+    @keyframes sheenAnim {
+      0% { transform: translateX(-100%); opacity: 1; }
+      100% { transform: translateX(100%); opacity: 0; }
+    }
+
+    /* 7. MODEL */
+    .model-wrapper {
+      position: fixed;
+      left: 50%;
+      bottom: 0;
+      transform: translateX(-50%);
+      height: var(--MH);
+      aspect-ratio: 524 / 1360;
+      z-index: 50;
+      pointer-events: none;
+      transform-origin: bottom center;
+    }
+    .model {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transform-origin: bottom center;
+      transform: scaleX(var(--body-scale-x)) scaleY(var(--body-scale-y)) rotate(var(--body-rotate)) translateY(var(--body-trans-y));
+      transition: transform 0.4s var(--ease);
+    }
+    .model-layer {
+      position: absolute;
+      inset: 0;
+      background-image: var(--model);
+      background-size: 513% 111.76%;
+      background-position-y: 100%;
+      background-repeat: no-repeat;
+      will-change: transform, clip-path;
+    }
+    .custom-avatar-layer {
+      position: absolute;
+      inset: 0;
+      background-size: contain;
+      background-position: center bottom;
+      background-repeat: no-repeat;
+      display: none;
+      will-change: transform, clip-path;
+      filter: drop-shadow(0 10px 20px rgba(0,0,0,0.3));
+    }
+    #mCur {
+      display: none; /* hidden on load until first scan */
+    }
+    #mNext {
+      clip-path: inset(0 0 100% 0);
+    }
+    .grid {
+      position: absolute;
+      inset: 0;
+      background-image: repeating-linear-gradient(0deg, transparent 0 5px, rgba(255, 255, 255, 0.22) 5px 6px);
+      mix-blend-mode: screen;
+      pointer-events: none;
+      clip-path: inset(0 0 100% 0);
+    }
+    .scan {
+      position: absolute;
+      left: -14%;
+      width: 128%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #fff 18%, #fff 82%, transparent);
+      box-shadow: 0 0 18px 4px rgba(255, 255, 255, 0.75), 0 0 60px 10px rgba(190, 225, 255, 0.45);
+      pointer-events: none;
+      opacity: 0;
+      top: 0;
+    }
+    .scan::after {
+      content: "";
+      position: absolute;
+      bottom: 2px;
+      left: 0;
+      right: 0;
+      height: calc(var(--MH) * 0.12);
+      background: linear-gradient(to top, rgba(220, 238, 255, 0.32), transparent);
+      pointer-events: none;
+    }
+
+    /* 8. ARROWS */
+    .arrow {
+      position: fixed;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+      color: #222;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+    .arrow:active {
+      transform: translateY(-50%) scale(0.92);
+    }
+    .arrow-left {
+      left: calc(max(18px, 1.8vw) + 76px);
+    }
+    .arrow-right {
+      right: max(18px, 1.8vw);
+    }
+    .arrow svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+
+    /* 9. BUY CARD */
+    .buy {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: 4.6vh;
+      z-index: 60;
+      width: min(640px, calc(100vw - 32px));
+      display: flex;
+      align-items: center;
+      gap: 22px;
+      padding: 12px 22px 12px 12px;
+      border-radius: 24px;
+      color: #fff;
+      text-shadow: 0 1px 6px rgba(0, 0, 0, 0.18);
+    }
+    .buy-thumb {
+      width: 64px;
+      height: 64px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.3);
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .buy-thumb-img {
+      position: absolute;
+      inset: 6px;
+      background-image: var(--garm);
+      background-size: 320% 212.5%;
+      background-repeat: no-repeat;
+      will-change: transform;
+    }
+    .buy-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 120px;
+    }
+    .ln {
+      height: 1.15em;
+      line-height: 1.15em;
+      overflow: hidden;
+      position: relative;
+    }
+    .ln-inner {
+      position: relative;
+      display: block;
+      white-space: nowrap;
+    }
+    .buy-name {
+      font-weight: 600;
+      font-size: 16px;
+    }
+    .buy-price {
+      font-weight: 500;
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    .buy-section {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .buy-label {
+      font-weight: 500;
+      font-size: 12px;
+      opacity: 0.85;
+    }
+    .size-chips {
+      display: flex;
+      gap: 6px;
+    }
+    .size-chip {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.22);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.15s ease, background 0.2s ease, color 0.2s ease;
+    }
+    .size-chip:active {
+      transform: scale(0.9);
+    }
+    .size-chip.active {
+      background: #fff;
+      color: #111;
+      text-shadow: none;
+    }
+    .color-dots {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .color-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      transition: box-shadow 0.2s ease, transform 0.2s ease;
+      position: relative;
+    }
+    .color-dot.active {
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95), 0 0 0 4px rgba(0, 0, 0, 0.12);
+    }
+    .buy-cta {
+      margin-left: auto;
+      padding: 10px 18px;
+      background: rgba(255,255,255,0.92);
+      color: #111;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 999px;
+      box-shadow: 0 4px 14px -4px rgba(0,0,0,0.25);
+      transition: transform 0.2s ease, background 0.2s ease;
+      white-space: nowrap;
+      text-shadow: none;
+    }
+    .buy-cta:hover {
+      background: #ffffff;
+      transform: scale(1.04);
+    }
+    .buy-cta:active {
+      transform: scale(0.96);
+    }
+
+    /* 10. CURSOR */
+    .cur {
+      position: fixed;
+      width: 58px;
+      height: 58px;
+      top: -29px;
+      left: -29px;
+      z-index: 1000;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      will-change: transform;
+      opacity: 0;
+    }
+    .cur-inner {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s var(--ease);
+    }
+    .cur.is-down .cur-inner {
+      transform: scale(1.05);
+    }
+    .cur-ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 1.5px solid rgba(255, 255, 255, 0.95);
+      background: rgba(255, 255, 255, 0.14);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      box-shadow: 0 6px 20px -8px rgba(0, 0, 0, 0.35);
+      transition: transform 0.5s var(--ease), background 0.5s var(--ease);
+    }
+    .cur-dot {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform 0.4s var(--ease), opacity 0.4s var(--ease);
+    }
+    .cur-text {
+      position: absolute;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      opacity: 0;
+      transform: scale(0.6);
+      transition: transform 0.45s var(--ease), opacity 0.45s var(--ease);
+      white-space: nowrap;
+    }
+    .cur-try {
+      color: #111;
+      text-shadow: none;
+    }
+    .cur-drag {
+      color: #fff;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Cursor modes */
+    .cur.mode-try .cur-ring {
+      transform: scale(1.5);
+      background: rgba(255, 255, 255, 0.92);
+    }
+    .cur.mode-try .cur-dot {
+      opacity: 0;
+      transform: scale(0);
+    }
+    .cur.mode-try .cur-try {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .cur.mode-drag .cur-ring {
+      transform: scale(1.2);
+    }
+    .cur.mode-drag .cur-dot {
+      opacity: 0;
+    }
+    .cur.mode-drag .cur-drag {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .cur.mode-btn .cur-ring {
+      transform: scale(0.6);
+    }
+    .cur.mode-btn .cur-dot {
+      opacity: 0;
+    }
+
+    /* 11. SPATIAL MODALS */
+    .spatial-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      background: rgba(18, 16, 14, 0.45);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s var(--ease);
+    }
+    .spatial-modal-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .spatial-modal {
+      width: min(580px, calc(100vw - 36px));
+      max-height: 86vh;
+      overflow-y: auto;
+      border-radius: 28px;
+      padding: 28px;
+      color: #fff;
+      transform: translateY(24px) scale(0.96);
+      transition: transform 0.45s var(--ease);
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.3) transparent;
+    }
+    .spatial-modal-overlay.open .spatial-modal {
+      transform: translateY(0) scale(1);
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .modal-title {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .modal-close {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      transition: background 0.2s ease;
+    }
+    .modal-close:hover {
+      background: rgba(255,255,255,0.3);
+    }
+    .modal-group {
+      margin-bottom: 20px;
+    }
+    .modal-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      opacity: 0.8;
+      margin-bottom: 8px;
+    }
+    .pill-group {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 8px;
+    }
+    .choice-pill {
+      padding: 10px 14px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.14);
+      border: 1px solid rgba(255,255,255,0.25);
+      font-size: 13px;
+      font-weight: 500;
+      color: #fff;
+      text-align: center;
+      transition: all 0.2s ease;
+    }
+    .choice-pill:hover {
+      background: rgba(255,255,255,0.25);
+    }
+    .choice-pill.active {
+      background: #fff;
+      color: #111;
+      border-color: #fff;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .range-slider-wrap {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .range-slider {
+      flex: 1;
+      accent-color: #ffffff;
+      height: 6px;
+      border-radius: 3px;
+      outline: none;
+    }
+    .slider-val {
+      font-weight: 700;
+      font-size: 15px;
+      min-width: 55px;
+      text-align: right;
+    }
+    .upload-box {
+      border: 2px dashed rgba(255,255,255,0.35);
+      border-radius: 18px;
+      padding: 22px;
+      text-align: center;
+      background: rgba(255,255,255,0.06);
+      transition: background 0.2s ease, border-color 0.2s ease;
+    }
+    .upload-box:hover {
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(255,255,255,0.6);
+    }
+    .upload-icon {
+      margin-bottom: 8px;
+      opacity: 0.85;
+    }
+    .link-input {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s ease, background 0.2s ease;
+    }
+    .link-input::placeholder {
+      color: rgba(255,255,255,0.5);
+    }
+    .link-input:focus {
+      background: rgba(255,255,255,0.22);
+      border-color: #fff;
+    }
+    .store-tags {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    .store-badge {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.18);
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    .action-btn {
+      width: 100%;
+      padding: 14px;
+      border-radius: 16px;
+      background: #ffffff;
+      color: #111;
+      font-weight: 600;
+      font-size: 15px;
+      text-align: center;
+      box-shadow: 0 6px 20px -6px rgba(0,0,0,0.3);
+      transition: transform 0.2s ease, background 0.2s ease;
+      margin-top: 10px;
+    }
+    .action-btn:hover {
+      background: #f4f2ee;
+      transform: translateY(-1px);
+    }
+    .action-btn:active {
+      transform: translateY(1px);
+    }
+    .preset-links {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .preset-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.18);
+      text-align: left;
+      transition: background 0.2s ease;
+    }
+    .preset-card:hover {
+      background: rgba(255,255,255,0.2);
+    }
+    .preset-card-store {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.2);
+    }
+
+    /* 12. PHONES (<=767px) */
+    @media (max-width: 767px) {
+      .tabs {
+        height: 32px;
+        padding: 3px;
+        max-width: 92vw;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+      .tabs::-webkit-scrollbar {
+        display: none;
+      }
+      .tabs-pill {
+        height: 26px;
+        top: 3px;
+      }
+      .tab-btn {
+        height: 26px;
+        padding: 0 13px;
+        font-size: 12px;
+      }
+      .rail {
+        left: 10px;
+        top: auto;
+        bottom: calc(4.6vh + 150px);
+        transform: none;
+        padding: 6px;
+        gap: 8px;
+      }
+      .rail-btn {
+        width: 34px;
+        height: 34px;
+      }
+      .rail-btn svg {
+        width: 16px;
+        height: 16px;
+      }
+      .arrow {
+        display: none;
+      }
+      .buy {
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 12px 16px;
+      }
+      .buy-info {
+        flex: 1;
+      }
+      .buy-cta {
+        width: 100%;
+        text-align: center;
+      }
+    }
+
+    /* 13. REDUCED MOTION */
+    @media (prefers-reduced-motion: reduce) {
+      .sheen {
+        display: none !important;
+      }
+      .tabs-pill, .cur-ring, .cur-dot, .cur-text {
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 1. SCENE ROOM -->
+  <div class="room" id="room"></div>
+
+  <!-- 2. GHOST WORD FIT -->
+  <div class="ghost" id="ghost">
+    <span id="g0">F</span>
+    <span id="g1">I</span>
+    <span id="g2">T</span>
+  </div>
+
+  <!-- 3. TOP TABS -->
+  <nav class="tabs glass" id="tabsNav">
+    <div class="tabs-pill" id="tabsPill"></div>
+    <button class="tab-btn active" data-tab="0">Tops</button>
+    <button class="tab-btn" data-tab="1">Bottoms</button>
+    <button class="tab-btn" data-tab="2">Outerwear</button>
+    <button class="tab-btn" data-tab="3">Shoes</button>
+    <button class="tab-btn" data-tab="4">Accessories</button>
+  </nav>
+
+  <!-- 4. TOOL RAIL -->
+  <aside class="rail glass">
+    <!-- Button 1: Tee (Try-on arc hero) -->
+    <button class="rail-btn active" id="btnRailWardrobe" title="Virtual Try-On Arc">
+      <svg viewBox="0 0 24 24"><path d="M12 2a4 4 0 0 0-3.5 2.06L3 7.8A1.5 1.5 0 0 0 3.78 10l2.22.86V21a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V10.86L20.22 10A1.5 1.5 0 0 0 21 7.8l-5.5-3.74A4 4 0 0 0 12 2zm0 2c1.07 0 2.04.54 2.62 1.41a3 3 0 0 1-5.24 0A3.01 3.01 0 0 1 12 4z"/></svg>
+      <span class="tooltip">Spatial Arc</span>
+    </button>
+    <!-- Button 2: Cart / E-Commerce Importer -->
+    <button class="rail-btn" id="btnRailImport" title="Try On Links (Flipkart / Amazon / Snapdeal)">
+      <svg viewBox="0 0 24 24"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1.003 1.003 0 0 0 20 4H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg>
+      <span class="tooltip">Paste Product Link</span>
+    </button>
+    <!-- Button 3: Calendar / Saved Looks -->
+    <button class="rail-btn" id="btnRailCalendar" title="Fit Timeline & Outfits">
+      <svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zM7 11h5v5H7z"/></svg>
+      <span class="tooltip">Saved Looks</span>
+    </button>
+    <!-- Button 4: Profile / Body & Avatar Studio -->
+    <button class="rail-btn" id="btnRailProfile" title="Body Customizer & Photo Upload">
+      <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+      <span class="tooltip">Body & Avatar Studio</span>
+    </button>
+  </aside>
+
+  <!-- 5. STAGE (ARC HOLDER) -->
+  <main class="stage" id="stage">
+    <div class="arc" id="arc"></div>
+  </main>
+
+  <!-- 6. MODEL & TRY-ON SCAN LINE -->
+  <div class="model-wrapper" id="modelWrapper">
+    <div class="model" id="modelBox">
+      <div class="model-layer" id="mCur"></div>
+      <div class="model-layer" id="mNext"></div>
+      <div class="custom-avatar-layer" id="customAvatar"></div>
+      <div class="grid" id="scanGrid"></div>
+      <div class="scan" id="scanLine"></div>
+    </div>
+  </div>
+
+  <!-- 7. ARROWS -->
+  <button class="arrow arrow-left glass" id="prevBtn" aria-label="Previous garment">
+    <svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+  </button>
+  <button class="arrow arrow-right glass" id="nextBtn" aria-label="Next garment">
+    <svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+  </button>
+
+  <!-- 8. BUY CARD -->
+  <div class="buy glass" id="buyCard">
+    <div class="buy-thumb">
+      <div class="buy-thumb-img" id="buyThumb"></div>
+    </div>
+    <div class="buy-info">
+      <div class="ln">
+        <span class="ln-inner buy-name" id="buyName">Basic T-shirt</span>
+      </div>
+      <div class="ln">
+        <span class="ln-inner buy-price" id="buyPrice">$45</span>
+      </div>
+    </div>
+    <div class="buy-section">
+      <span class="buy-label">Size</span>
+      <div class="size-chips" id="sizeChips">
+        <button class="size-chip" data-size="S">S</button>
+        <button class="size-chip active" data-size="M">M</button>
+        <button class="size-chip" data-size="L">L</button>
+        <button class="size-chip" data-size="XL">XL</button>
+      </div>
+    </div>
+    <div class="buy-section">
+      <div class="ln">
+        <span class="ln-inner buy-label" id="colorLabel">Color · White</span>
+      </div>
+      <div class="color-dots" id="colorDots"></div>
+    </div>
+    <button class="buy-cta" id="buyCtaBtn">Add to Bag</button>
+  </div>
+
+  <!-- 9. CURSOR -->
+  <div class="cur" id="cur">
+    <div class="cur-inner">
+      <div class="cur-ring"></div>
+      <div class="cur-dot"></div>
+      <span class="cur-text cur-try">TRY ON</span>
+      <span class="cur-text cur-drag">DRAG</span>
+    </div>
+  </div>
+
+  <!-- 10. SPATIAL MODAL: BODY CUSTOMIZER & PHOTO UPLOAD -->
+  <div class="spatial-modal-overlay" id="bodyModalOverlay">
+    <div class="spatial-modal glass">
+      <div class="modal-header">
+        <h2 class="modal-title">Spatial Body & Avatar Profile</h2>
+        <button class="modal-close" id="bodyModalClose">✕</button>
+      </div>
+
+      <!-- Avatar Source Toggle -->
+      <div class="modal-group">
+        <label class="modal-label">Avatar Identity</label>
+        <div class="pill-group">
+          <button class="choice-pill active" id="btnUseStudioModel">Studio Mannequin</button>
+          <button class="choice-pill" id="btnUseCustomPhoto">My Uploaded Photo</button>
+        </div>
+      </div>
+
+      <!-- Photo Upload Box -->
+      <div class="modal-group">
+        <label class="modal-label">Upload Full-Body or Torso Photo</label>
+        <label class="upload-box" for="userPhotoInput" style="display:block;">
+          <input type="file" id="userPhotoInput" accept="image/*" style="display:none;">
+          <svg class="upload-icon" width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+          <div style="font-weight:600; font-size:14px;">Drop your photo or click to browse</div>
+          <div style="font-size:12px; opacity:0.7; margin-top:4px;">Supports PNG, JPG, WebP. High-contrast standing photo works best.</div>
+          <div id="photoStatus" style="margin-top:8px; font-size:12px; color:#4ade80; display:none;">✓ Photo Loaded & Segmented</div>
+        </label>
+      </div>
+
+      <!-- Body Height -->
+      <div class="modal-group">
+        <label class="modal-label">Body Height</label>
+        <div class="range-slider-wrap">
+          <input type="range" class="range-slider" id="heightSlider" min="150" max="205" value="180">
+          <span class="slider-val" id="heightVal">180 cm</span>
+        </div>
+      </div>
+
+      <!-- Body Build (Flat / Athletic / Average / Obese) -->
+      <div class="modal-group">
+        <label class="modal-label">Body Build & Proportion</label>
+        <div class="pill-group" id="buildGroup">
+          <button class="choice-pill" data-build="slim">Slim / Flat</button>
+          <button class="choice-pill" data-build="athletic">Athletic (V-Taper)</button>
+          <button class="choice-pill active" data-build="regular">Regular Fit</button>
+          <button class="choice-pill" data-build="obese">Husky / Obese</button>
+        </div>
+      </div>
+
+      <!-- Belly Type -->
+      <div class="modal-group">
+        <label class="modal-label">Belly / Midsection Contour</label>
+        <div class="pill-group" id="bellyGroup">
+          <button class="choice-pill" data-belly="flat">Flat / Toned</button>
+          <button class="choice-pill active" data-belly="slight">Slight Curve</button>
+          <button class="choice-pill" data-belly="rounded">Rounded Midriff</button>
+          <button class="choice-pill" data-belly="prominent">Prominent Belly</button>
+        </div>
+      </div>
+
+      <!-- Posture -->
+      <div class="modal-group">
+        <label class="modal-label">Stance & Posture</label>
+        <div class="pill-group" id="postureGroup">
+          <button class="choice-pill active" data-posture="upright">Upright / Confident</button>
+          <button class="choice-pill" data-posture="relaxed">Relaxed Neutral</button>
+          <button class="choice-pill" data-posture="slouched">Shoulder Drop</button>
+          <button class="choice-pill" data-posture="forward">Forward Stance</button>
+        </div>
+      </div>
+
+      <button class="action-btn" id="btnApplyBodyProfile">Save & Update Avatar Fit</button>
+    </div>
+  </div>
+
+  <!-- 11. SPATIAL MODAL: E-COMMERCE PRODUCT LINK IMPORTER -->
+  <div class="spatial-modal-overlay" id="importModalOverlay">
+    <div class="spatial-modal glass">
+      <div class="modal-header">
+        <h2 class="modal-title">Try On Product From Link</h2>
+        <button class="modal-close" id="importModalClose">✕</button>
+      </div>
+
+      <div class="modal-group">
+        <label class="modal-label">Paste Product URL or Description</label>
+        <input type="text" class="link-input" id="linkInput" placeholder="Paste link from Flipkart, Amazon, Snapdeal, Myntra, etc.">
+        <div class="store-tags">
+          <span class="store-badge">Flipkart</span>
+          <span class="store-badge">Amazon</span>
+          <span class="store-badge">Snapdeal</span>
+          <span class="store-badge">Myntra</span>
+          <span class="store-badge">Zara</span>
+          <span class="store-badge">Any E-Commerce</span>
+        </div>
+      </div>
+
+      <div class="modal-group">
+        <label class="modal-label">Or Instant Try 1-Click Trending Items</label>
+        <div class="preset-links">
+          <div class="preset-card" data-title="Flipkart Utility Cargo Shacket" data-price="75" data-store="Flipkart" data-color="#464b3c" data-cname="Army Olive">
+            <span class="preset-card-store">Flipkart</span>
+            <div style="flex:1;">
+              <div style="font-weight:600; font-size:13px;">Flipkart Utility Cargo Shacket</div>
+              <div style="font-size:11px; opacity:0.8;">₹2,499 ($75) · 100% Heavy Twill Cotton</div>
+            </div>
+            <button class="action-btn" style="width:auto; padding:6px 14px; margin:0; font-size:12px;">Try On</button>
+          </div>
+
+          <div class="preset-card" data-title="Amazon Essentials Merino Knit" data-price="88" data-store="Amazon" data-color="#243447" data-cname="Midnight Blue">
+            <span class="preset-card-store">Amazon</span>
+            <div style="flex:1;">
+              <div style="font-weight:600; font-size:13px;">Amazon Essentials Merino Knit</div>
+              <div style="font-size:11px; opacity:0.8;">₹3,199 ($88) · Extra-Fine Australian Wool</div>
+            </div>
+            <button class="action-btn" style="width:auto; padding:6px 14px; margin:0; font-size:12px;">Try On</button>
+          </div>
+
+          <div class="preset-card" data-title="Snapdeal Vintage Slub Henley" data-price="39" data-store="Snapdeal" data-color="#8c7853" data-cname="Warm Taupe">
+            <span class="preset-card-store">Snapdeal</span>
+            <div style="flex:1;">
+              <div style="font-weight:600; font-size:13px;">Snapdeal Vintage Slub Henley</div>
+              <div style="font-size:11px; opacity:0.8;">₹1,299 ($39) · Slub Waffle Knit</div>
+            </div>
+            <button class="action-btn" style="width:auto; padding:6px 14px; margin:0; font-size:12px;">Try On</button>
+          </div>
+        </div>
+      </div>
+
+      <button class="action-btn" id="btnExtractAndTry">Extract Garment & Add to 3D Arc</button>
+    </div>
+  </div>
+
+  <script>
+    /* =====================================================================
+       3. DATA
+       ===================================================================== */
+    const ITEMS = [
+      {n:"Basic T-shirt", p:45,  g:[1.14,3.06],  m:.37,   c:[["White","#f4f2ee"],["Ash","#c9c7c2"],["Charcoal","#3b3c3f"],["Navy","#27324d"]]},
+      {n:"Basic Sweater", p:105, g:[49.7,1.39],  m:25.0,  c:[["White","#f6f4ef"],["Oat","#ddd3c2"],["Sage","#b9c2ae"],["Black","#1f1f21"]]},
+      {n:"Linen Shirt",   p:95,  g:[98.2,3.33],  m:49.86, c:[["White","#f7f6f1"],["Sand","#d9ccb4"],["Sky","#bcd0e2"],["Olive","#717556"]]},
+      {n:"Grey Hoodie",   p:110, g:[1.14,93.3],  m:74.77, c:[["Heather","#a9a9a8"],["Bone","#e6e1d6"],["Forest","#33463a"],["Black","#1f1f21"]]},
+      {n:"Ringer Tee",    p:55,  g:[49.7,95.3],  m:99.35, c:[["White / Black","#f4f2ee"],["Cream / Navy","#efe6d3"],["Grey / Red","#c9c7c2"],["White / Green","#e9efe8"]]},
+    ];
+
+    const NUM_CARDS = 10; // Two copies of the 5 items for seamless looping
+    const seed = Array.from({length: NUM_CARDS}, (_, i) => i * 1.371 + 0.42);
+
+    /* DOM elements */
+    const stageEl = document.getElementById('stage');
+    const arcEl = document.getElementById('arc');
+    const roomEl = document.getElementById('room');
+    const ghostEl = document.getElementById('ghost');
+    const ghostLetters = [document.getElementById('g0'), document.getElementById('g1'), document.getElementById('g2')];
+    const mCur = document.getElementById('mCur');
+    const mNext = document.getElementById('mNext');
+    const scanGrid = document.getElementById('scanGrid');
+    const scanLine = document.getElementById('scanLine');
+    const customAvatar = document.getElementById('customAvatar');
+    const modelBox = document.getElementById('modelBox');
+
+    /* Buy card elements */
+    const buyThumb = document.getElementById('buyThumb');
+    const buyName = document.getElementById('buyName');
+    const buyPrice = document.getElementById('buyPrice');
+    const colorLabel = document.getElementById('colorLabel');
+    const colorDotsContainer = document.getElementById('colorDots');
+    const sizeChipsContainer = document.getElementById('sizeChips');
+
+    /* Nav / Controls */
+    const tabsPill = document.getElementById('tabsPill');
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+
+    /* Cursor */
+    const curEl = document.getElementById('cur');
+
+    /* Modals & Tools */
+    const btnRailWardrobe = document.getElementById('btnRailWardrobe');
+    const btnRailImport = document.getElementById('btnRailImport');
+    const btnRailCalendar = document.getElementById('btnRailCalendar');
+    const btnRailProfile = document.getElementById('btnRailProfile');
+    const bodyModalOverlay = document.getElementById('bodyModalOverlay');
+    const bodyModalClose = document.getElementById('bodyModalClose');
+    const importModalOverlay = document.getElementById('importModalOverlay');
+    const importModalClose = document.getElementById('importModalClose');
+
+    /* State variables */
+    let pos = 0;
+    let target = 0;
+    let intro = 0;
+    let ie = 0;
+    let curOutfit = -1;
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartPos = 0;
+    let lastDragX = 0;
+    let lastDragTime = 0;
+    let flick = 0;
+    let dragDist = 0;
+
+    let targetMouseX = window.innerWidth / 2;
+    let targetMouseY = window.innerHeight / 2;
+    let mouseX = targetMouseX;
+    let mouseY = targetMouseY;
+    let sx = 0;
+    let sy = 0;
+
+    let wheelDeltaSum = 0;
+    let lastWheelTime = 0;
+    let activeRunningAnims = [];
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    /* Build cards into DOM */
+    const cardElements = [];
+    for (let i = 0; i < NUM_CARDS; i++) {
+      const item = ITEMS[i % 5];
+      const card = document.createElement('div');
+      card.className = 'card glass';
+      card.dataset.index = i;
+
+      const g = document.createElement('div');
+      g.className = 'g';
+      g.style.backgroundPosition = `${item.g[0]}% ${item.g[1]}%`;
+
+      const nm = document.createElement('div');
+      nm.className = 'card-name';
+      nm.textContent = item.n;
+
+      const pr = document.createElement('div');
+      pr.className = 'card-price';
+      pr.textContent = `$${item.p}`;
+
+      const sheen = document.createElement('div');
+      sheen.className = 'sheen';
+
+      card.appendChild(g);
+      card.appendChild(nm);
+      card.appendChild(pr);
+      card.appendChild(sheen);
+      arcEl.appendChild(card);
+      cardElements.push(card);
+
+      // Card hover & sheen
+      if (!reducedMotion) {
+        card.addEventListener('mouseenter', () => {
+          sheen.classList.remove('active');
+          void sheen.offsetWidth; // re-trigger animation
+          sheen.classList.add('active');
+        });
+      }
+    }
+
+    /* Set Card Width (CW) */
+    function updateDimensions() {
+      const W = window.innerWidth;
+      const H = window.innerHeight;
+      const isPhone = W <= 767;
+      let cw;
+      if (isPhone) {
+        cw = Math.min(W * 0.30, 170);
+      } else {
+        cw = Math.min(W * 0.148, H * 0.33);
+      }
+      document.documentElement.style.setProperty('--CW', `${cw}px`);
+      updateTabsPill();
+    }
+    window.addEventListener('resize', updateDimensions);
+    updateDimensions();
+
+    /* =====================================================================
+       5. ARC MATHS (Every animation frame)
+       ===================================================================== */
+    function xAt(a, W, isPhone) {
+      const XS = isPhone
+        ? [0, 0.36, 0.5, 0.56, 0.6, 0.62]
+        : [0, 0.215, 0.345, 0.432, 0.49, 0.52];
+      if (a <= 0) return XS[0] * W;
+      if (a >= 5) return XS[5] * W;
+      const idx = Math.floor(a);
+      const rem = a - idx;
+      return (XS[idx] + (XS[idx + 1] - XS[idx]) * rem) * W;
+    }
+
+    function frameLoop(now) {
+      const t = now * 0.001;
+      const W = window.innerWidth;
+      const H = window.innerHeight;
+      const isPhone = W <= 767;
+
+      // Mouse smoothing
+      mouseX += (targetMouseX - mouseX) * 0.22;
+      mouseY += (targetMouseY - mouseY) * 0.22;
+      const targetSx = (targetMouseX / W) - 0.5;
+      const targetSy = (targetMouseY / H) - 0.5;
+      sx += (targetSx - sx) * 0.06;
+      sy += (targetSy - sy) * 0.06;
+
+      // Cursor position
+      curEl.style.transform = `translate3d(${mouseX}px, ${mouseY}px, 0)`;
+
+      // Arc position interpolation
+      if (reducedMotion) {
+        pos = target;
+        intro = 1;
+        ie = 1;
+      } else {
+        if (!isDragging) {
+          pos += (target - pos) * 0.11;
+        }
+        if (intro < 1) {
+          intro = Math.min(1, intro + 0.012);
+        }
+        ie = 1 - Math.pow(1 - intro, 3);
+      }
+
+      // Parallax
+      roomEl.style.transform = `translate3d(${-sx * 22}px, ${-sy * 14}px, 0) scale(${1.08 - 0.03 * ie})`;
+      ghostEl.style.transform = `translate(calc(-50% - ${sx * 40}px), ${-sy * 16}px)`;
+      for (let k = 0; k < 3; k++) {
+        ghostLetters[k].style.transform = `translateY(${(1 - ie) * (60 + 30 * k)}px)`;
+      }
+
+      // Render cards
+      for (let i = 0; i < NUM_CARDS; i++) {
+        const card = cardElements[i];
+        let u = (((i - pos + 5) % 10) + 10) % 10 - 5;
+        const a = Math.abs(u);
+        const sg = Math.sign(u) || 1;
+
+        let s, z, ry, blurVal, op;
+        if (a < 1) {
+          s = 0.55 + 0.45 * a;
+          z = -260 * (1 - a);
+          op = a;
+          ry = -sg * 16 * a;
+          blurVal = 0;
+        } else {
+          s = 1 / (1 + 0.3 * Math.pow(a - 1, 1.15));
+          z = -110 * (a - 1);
+          ry = -sg * (16 + 9 * Math.min(2, a - 1));
+          blurVal = Math.max(0, a - 1.6) * 2.4;
+          op = a > 3.4 ? Math.max(0, 1 - (a - 3.4) / 0.8) : 1;
+        }
+
+        const bob = reducedMotion ? 0 : Math.sin(t * 1.1 + seed[i]) * H * 0.006 * Math.min(1, a);
+        const y = bob - (1 - s) * H * 0.04;
+        const x = sg * xAt(a, W, isPhone) * ie;
+        ry += sx * 10;
+
+        const effectiveOpacity = op * ie;
+        if (effectiveOpacity < 0.01) {
+          card.style.visibility = 'hidden';
+          card.style.opacity = '0';
+        } else {
+          card.style.visibility = 'visible';
+          card.style.opacity = effectiveOpacity.toFixed(3);
+          card.style.zIndex = a < 1 ? 1 : Math.round(100 - 10 * a);
+          card.style.filter = blurVal > 0.05 ? `blur(${blurVal.toFixed(2)}px)` : 'none';
+          card.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0px) perspective(1300px) translateZ(${z.toFixed(2)}px) rotateY(${ry.toFixed(2)}deg) rotateX(${(-sy * 6).toFixed(2)}deg) scale(${(s * (0.6 + 0.4 * ie)).toFixed(4)})`;
+        }
+      }
+
+      // Settle check
+      const roundedTarget = Math.round(target);
+      const outfitIdx = ((roundedTarget % 5) + 5) % 5;
+      if (Math.abs(target - pos) < 0.02 && outfitIdx !== curOutfit && !isDragging) {
+        triggerTryOn(outfitIdx);
+      }
+
+      requestAnimationFrame(frameLoop);
+    }
+    requestAnimationFrame(frameLoop);
+
+    /* =====================================================================
+       6. TRY-ON SCAN (950 ms, cubic-bezier(.65,0,.35,1))
+       ===================================================================== */
+    function triggerTryOn(idx) {
+      curOutfit = idx;
+      updateBuyCard(idx);
+
+      // Cancel running animations
+      activeRunningAnims.forEach(anim => {
+        try { anim.cancel(); } catch (e) {}
+      });
+      activeRunningAnims = [];
+
+      const targetX = ITEMS[idx].m;
+      mNext.style.backgroundPositionX = `${targetX}%`;
+
+      if (reducedMotion) {
+        mCur.style.backgroundPositionX = `${targetX}%`;
+        mCur.style.display = 'block';
+        mNext.style.clipPath = 'inset(0 0 100% 0)';
+        return;
+      }
+
+      const easeTiming = 'cubic-bezier(.65,0,.35,1)';
+
+      // 1. mNext clip
+      const animNextClip = mNext.animate([
+        { clipPath: 'inset(0 0 100% 0)' },
+        { clipPath: 'inset(0 0 0% 0)' }
+      ], {
+        duration: 950,
+        easing: easeTiming,
+        fill: 'forwards'
+      });
+      activeRunningAnims.push(animNextClip);
+
+      // 2. grid clip
+      const animGrid = scanGrid.animate([
+        { clipPath: 'inset(0 0 100% 0)', offset: 0 },
+        { clipPath: 'inset(0 0 0 0)', offset: 0.5 },
+        { clipPath: 'inset(100% 0 0 0)', offset: 1 }
+      ], {
+        duration: 1092,
+        easing: easeTiming
+      });
+      activeRunningAnims.push(animGrid);
+
+      // 3. scan line
+      const animScan = scanLine.animate([
+        { top: '0%', transform: 'scaleX(0.2)', opacity: 0, offset: 0 },
+        { top: '6%', transform: 'scaleX(1)', opacity: 1, offset: 0.08 },
+        { top: '94%', transform: 'scaleX(1)', opacity: 1, offset: 0.92 },
+        { top: '100%', transform: 'scaleX(0.2)', opacity: 0, offset: 1 }
+      ], {
+        duration: 950,
+        easing: easeTiming
+      });
+      activeRunningAnims.push(animScan);
+
+      // 4. mNext settle
+      const animSettle = mNext.animate([
+        { transform: 'scale(1.012)' },
+        { transform: 'scale(1)' }
+      ], {
+        duration: 1250,
+        easing: 'ease-out'
+      });
+      activeRunningAnims.push(animSettle);
+
+      animNextClip.onfinish = () => {
+        mCur.style.backgroundPositionX = `${targetX}%`;
+        mCur.style.display = 'block';
+        activeRunningAnims.forEach(anim => {
+          try { anim.cancel(); } catch (e) {}
+        });
+        activeRunningAnims = [];
+        mNext.style.clipPath = 'inset(0 0 100% 0)';
+      };
+    }
+
+    /* =====================================================================
+       7. BUY CARD UPDATES & ROLLING TEXT
+       ===================================================================== */
+    function rollText(element, newText) {
+      if (element.textContent === newText) return;
+      if (reducedMotion) {
+        element.textContent = newText;
+        return;
+      }
+      const parent = element.parentElement;
+      const clone = element.cloneNode(true);
+      clone.textContent = newText;
+      clone.style.position = 'absolute';
+      clone.style.left = '0';
+      clone.style.top = '0';
+      parent.appendChild(clone);
+
+      const easeRoll = 'cubic-bezier(.2,.8,.2,1)';
+      const animOld = element.animate([
+        { transform: 'translateY(0)' },
+        { transform: 'translateY(-110%)' }
+      ], { duration: 620, easing: easeRoll, fill: 'forwards' });
+
+      const animNew = clone.animate([
+        { transform: 'translateY(110%)' },
+        { transform: 'translateY(0)' }
+      ], { duration: 620, easing: easeRoll, fill: 'forwards' });
+
+      animNew.onfinish = () => {
+        element.textContent = newText;
+        animOld.cancel();
+        animNew.cancel();
+        if (clone.parentNode) parent.removeChild(clone);
+      };
+    }
+
+    function updateBuyCard(idx) {
+      const item = ITEMS[idx];
+      rollText(buyName, item.n);
+      rollText(buyPrice, `$${item.p}`);
+
+      // Thumbnail jump & bounce in
+      buyThumb.style.backgroundPosition = `${item.g[0]}% ${item.g[1]}%`;
+      if (!reducedMotion) {
+        buyThumb.animate([
+          { transform: 'translateY(70%) scale(0.8)' },
+          { transform: 'translateY(0) scale(1)' }
+        ], {
+          duration: 650,
+          easing: 'cubic-bezier(.2,.8,.2,1)'
+        });
+      }
+
+      // Rebuild colour dots
+      colorDotsContainer.innerHTML = '';
+      item.c.forEach((col, cIdx) => {
+        const dot = document.createElement('button');
+        dot.className = `color-dot ${cIdx === 0 ? 'active' : ''}`;
+        dot.style.backgroundColor = col[1];
+        dot.title = col[0];
+        dot.addEventListener('click', (e) => {
+          e.stopPropagation();
+          colorDotsContainer.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+          dot.classList.add('active');
+          rollText(colorLabel, `Color · ${col[0]}`);
+        });
+        colorDotsContainer.appendChild(dot);
+      });
+      rollText(colorLabel, `Color · ${item.c[0][0]}`);
+    }
+
+    // Size chip selection
+    sizeChipsContainer.querySelectorAll('.size-chip').forEach(chip => {
+      chip.addEventListener('click', (e) => {
+        e.stopPropagation();
+        sizeChipsContainer.querySelectorAll('.size-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+      });
+    });
+
+    /* =====================================================================
+       8. INPUT HANDLING (Drag, Click, Wheel, Keys, Tabs)
+       ===================================================================== */
+    // Drag on stage
+    stageEl.addEventListener('pointerdown', (e) => {
+      isDragging = true;
+      dragStartX = e.clientX;
+      dragStartPos = pos;
+      lastDragX = e.clientX;
+      lastDragTime = performance.now();
+      flick = 0;
+      dragDist = 0;
+      curEl.classList.add('is-down');
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      targetMouseX = e.clientX;
+      targetMouseY = e.clientY;
+
+      if (!isDragging) {
+        updateCursorContext(e);
+        return;
+      }
+
+      const now = performance.now();
+      const dx = e.clientX - dragStartX;
+      dragDist += Math.abs(e.clientX - lastDragX);
+
+      const isPhone = window.innerWidth <= 767;
+      const step1 = (isPhone ? 0.36 : 0.215) * window.innerWidth;
+      pos = dragStartPos - dx / step1;
+
+      const dt = now - lastDragTime;
+      if (dt > 8) {
+        flick = (e.clientX - lastDragX) / dt;
+        lastDragX = e.clientX;
+        lastDragTime = now;
+      }
+      setCursorMode('drag');
+    });
+
+    window.addEventListener('pointerup', (e) => {
+      curEl.classList.remove('is-down');
+      if (isDragging) {
+        isDragging = false;
+        target = Math.round(pos - flick * 3.2);
+      }
+      updateCursorContext(e);
+    });
+
+    // Click on card
+    cardElements.forEach(card => {
+      card.addEventListener('click', (e) => {
+        if (dragDist > 6) return;
+        const idx = parseInt(card.dataset.index, 10);
+        const diff = (((idx - pos + 5) % 10) + 10) % 10 - 5;
+        target = Math.round(pos + diff);
+      });
+    });
+
+    // Wheel
+    window.addEventListener('wheel', (e) => {
+      const delta = e.deltaX !== 0 ? e.deltaX : e.deltaY;
+      wheelDeltaSum += delta;
+      const now = performance.now();
+      if (Math.abs(wheelDeltaSum) >= 60) {
+        if (now - lastWheelTime >= 260) {
+          target += Math.sign(wheelDeltaSum);
+          lastWheelTime = now;
+          wheelDeltaSum = 0;
+        }
+      }
+    }, { passive: true });
+
+    // Arrow keys & buttons
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') {
+        target -= 1;
+      } else if (e.key === 'ArrowRight') {
+        target += 1;
+      }
+    });
+    prevBtn.addEventListener('click', () => { target -= 1; });
+    nextBtn.addEventListener('click', () => { target += 1; });
+
+    // Tabs
+    function updateTabsPill() {
+      const activeBtn = document.querySelector('.tab-btn.active');
+      if (activeBtn) {
+        tabsPill.style.transform = `translateX(${activeBtn.offsetLeft}px)`;
+        tabsPill.style.width = `${activeBtn.offsetWidth}px`;
+      }
+    }
+
+    tabButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tabButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        updateTabsPill();
+        // Add 5 to target so the arc does a full lap and lands back on the garment
+        target += 5;
+      });
+    });
+
+    /* =====================================================================
+       10. CURSOR LOGIC
+       ===================================================================== */
+    curEl.style.opacity = '1';
+    function setCursorMode(mode) {
+      curEl.classList.remove('mode-try', 'mode-drag', 'mode-btn');
+      if (mode) curEl.classList.add(`mode-${mode}`);
+    }
+
+    function updateCursorContext(e) {
+      const targetEl = document.elementFromPoint(e.clientX, e.clientY);
+      if (!targetEl) return;
+      if (targetEl.closest('.card')) {
+        setCursorMode('try');
+      } else if (targetEl.closest('button, input, select, .choice-pill, .size-chip, .color-dot, .preset-card')) {
+        setCursorMode('btn');
+      } else if (targetEl.closest('.stage')) {
+        setCursorMode('drag');
+      } else {
+        setCursorMode(null);
+      }
+    }
+
+    /* =====================================================================
+       11. BODY CUSTOMIZER, POSTURE, BELLY & PHOTO UPLOAD
+       ===================================================================== */
+    const heightSlider = document.getElementById('heightSlider');
+    const heightVal = document.getElementById('heightVal');
+    const userPhotoInput = document.getElementById('userPhotoInput');
+    const photoStatus = document.getElementById('photoStatus');
+    const btnUseStudioModel = document.getElementById('btnUseStudioModel');
+    const btnUseCustomPhoto = document.getElementById('btnUseCustomPhoto');
+    let customPhotoDataUrl = null;
+
+    let currentBody = {
+      height: 180,
+      build: 'regular',
+      belly: 'slight',
+      posture: 'upright',
+      usePhoto: false
+    };
+
+    btnRailProfile.addEventListener('click', () => {
+      bodyModalOverlay.classList.add('open');
+    });
+    bodyModalClose.addEventListener('click', () => {
+      bodyModalOverlay.classList.remove('open');
+    });
+    bodyModalOverlay.addEventListener('click', (e) => {
+      if (e.target === bodyModalOverlay) bodyModalOverlay.classList.remove('open');
+    });
+
+    heightSlider.addEventListener('input', (e) => {
+      heightVal.textContent = `${e.target.value} cm`;
+      currentBody.height = parseInt(e.target.value, 10);
+    });
+
+    function setupPillGroup(containerId, key) {
+      const group = document.getElementById(containerId);
+      group.querySelectorAll('.choice-pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+          group.querySelectorAll('.choice-pill').forEach(p => p.classList.remove('active'));
+          pill.classList.add('active');
+          currentBody[key] = pill.dataset[key];
+        });
+      });
+    }
+    setupPillGroup('buildGroup', 'build');
+    setupPillGroup('bellyGroup', 'belly');
+    setupPillGroup('postureGroup', 'posture');
+
+    // Photo input
+    userPhotoInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        customPhotoDataUrl = ev.target.result;
+        photoStatus.style.display = 'block';
+        customAvatar.style.backgroundImage = `url('${customPhotoDataUrl}')`;
+        btnUseCustomPhoto.click();
+      };
+      reader.readAsDataURL(file);
+    });
+
+    btnUseStudioModel.addEventListener('click', () => {
+      btnUseStudioModel.classList.add('active');
+      btnUseCustomPhoto.classList.remove('active');
+      currentBody.usePhoto = false;
+    });
+
+    btnUseCustomPhoto.addEventListener('click', () => {
+      if (!customPhotoDataUrl) {
+        userPhotoInput.click();
+        return;
+      }
+      btnUseCustomPhoto.classList.add('active');
+      btnUseStudioModel.classList.remove('active');
+      currentBody.usePhoto = true;
+    });
+
+    document.getElementById('btnApplyBodyProfile').addEventListener('click', () => {
+      applyBodyProfile();
+      bodyModalOverlay.classList.remove('open');
+      // Trigger scan to show new avatar fit!
+      triggerTryOn(curOutfit >= 0 ? curOutfit : 0);
+    });
+
+    function applyBodyProfile() {
+      // Height factor (180 baseline)
+      const heightFactor = currentBody.height / 180;
+      let scaleX = 1;
+      let scaleY = heightFactor;
+      let rot = 0;
+      let transY = 0;
+
+      // Build proportion
+      if (currentBody.build === 'slim') scaleX *= 0.88;
+      else if (currentBody.build === 'athletic') scaleX *= 1.05;
+      else if (currentBody.build === 'obese') scaleX *= 1.22;
+
+      // Belly type adjustment
+      if (currentBody.belly === 'flat') scaleX *= 0.96;
+      else if (currentBody.belly === 'rounded') scaleX *= 1.08;
+      else if (currentBody.belly === 'prominent') scaleX *= 1.18;
+
+      // Posture
+      if (currentBody.posture === 'upright') rot = 0;
+      else if (currentBody.posture === 'relaxed') rot = 0.5;
+      else if (currentBody.posture === 'slouched') { rot = 1.2; transY = 8; }
+      else if (currentBody.posture === 'forward') { rot = -1.2; transY = 4; }
+
+      document.documentElement.style.setProperty('--body-scale-x', scaleX.toFixed(3));
+      document.documentElement.style.setProperty('--body-scale-y', scaleY.toFixed(3));
+      document.documentElement.style.setProperty('--body-rotate', `${rot}deg`);
+      document.documentElement.style.setProperty('--body-trans-y', `${transY}px`);
+
+      if (currentBody.usePhoto && customPhotoDataUrl) {
+        customAvatar.style.display = 'block';
+        mCur.style.opacity = '0.15';
+        mNext.style.opacity = '0.15';
+      } else {
+        customAvatar.style.display = 'none';
+        mCur.style.opacity = '1';
+        mNext.style.opacity = '1';
+      }
+    }
+
+    /* =====================================================================
+       12. E-COMMERCE PRODUCT LINK IMPORTER
+       ===================================================================== */
+    btnRailImport.addEventListener('click', () => {
+      importModalOverlay.classList.add('open');
+    });
+    importModalClose.addEventListener('click', () => {
+      importModalOverlay.classList.remove('open');
+    });
+    importModalOverlay.addEventListener('click', (e) => {
+      if (e.target === importModalOverlay) importModalOverlay.classList.remove('open');
+    });
+
+    // Preset cards
+    document.querySelectorAll('.preset-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const title = card.dataset.title;
+        const price = parseInt(card.dataset.price, 10);
+        const color = card.dataset.color;
+        const cname = card.dataset.cname;
+        addNewGarmentItem(title, price, [[cname, color], ["Charcoal", "#3b3c3f"]]);
+        importModalOverlay.classList.remove('open');
+      });
+    });
+
+    document.getElementById('btnExtractAndTry').addEventListener('click', () => {
+      const url = document.getElementById('linkInput').value.trim();
+      let title = "Imported Designer Top";
+      let price = 79;
+      if (url.toLowerCase().includes('flipkart')) {
+        title = "Flipkart Heritage Over-Tee";
+        price = 49;
+      } else if (url.toLowerCase().includes('amazon')) {
+        title = "Amazon Essentials Tailored Polo";
+        price = 59;
+      } else if (url.toLowerCase().includes('snapdeal')) {
+        title = "Snapdeal Vintage Knit Crew";
+        price = 39;
+      } else if (url.length > 5) {
+        title = url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0] + " Item";
+      }
+      addNewGarmentItem(title, price, [["Natural Canvas", "#ece7de"], ["Deep Indigo", "#1e293b"]]);
+      importModalOverlay.classList.remove('open');
+    });
+
+    function addNewGarmentItem(name, price, colors) {
+      const template = ITEMS[curOutfit >= 0 ? curOutfit : 0];
+      const newItem = {
+        n: name,
+        p: price,
+        g: [template.g[0], template.g[1]],
+        m: template.m,
+        c: colors
+      };
+
+      ITEMS[curOutfit] = newItem;
+      updateBuyCard(curOutfit);
+      triggerTryOn(curOutfit);
+    }
+
+    /* Rail extra tools */
+    btnRailWardrobe.addEventListener('click', () => {
+      btnRailWardrobe.classList.add('active');
+      btnRailCalendar.classList.remove('active');
+    });
+    btnRailCalendar.addEventListener('click', () => {
+      alert("Fit History: Saved 5 try-on variations to your spatial lookbook.");
+    });
+    document.getElementById('buyCtaBtn').addEventListener('click', () => {
+      const currentItem = ITEMS[curOutfit >= 0 ? curOutfit : 0];
+      alert(`Added "${currentItem.n}" ($${currentItem.p}) in size ${document.querySelector('.size-chip.active')?.textContent || 'M'} to your shopping bag!`);
+    });
+
+    /* Initial trigger on load: #mCur stays hidden and scan reveals the model */
+    window.addEventListener('load', () => {
+      updateTabsPill();
+      triggerTryOn(0);
+    });
+  </script>
+</body>
+</html>
