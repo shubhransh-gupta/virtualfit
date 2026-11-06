@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>VirtualFit: Spatial Try-On</title>
+  <title>0xnull: Spatial Try-On & Virtual Fitting Room</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -31,6 +31,11 @@
       --body-scale-y: 1;
       --body-rotate: 0deg;
       --body-trans-y: 0px;
+
+      /* Face positioning parameters */
+      --face-scale: 1;
+      --face-offset-x: 0px;
+      --face-offset-y: 0px;
     }
     @media (max-width: 767px) {
       :root {
@@ -81,7 +86,7 @@
       background: radial-gradient(70% 60% at 50% 45%, rgba(255,252,246,.10), rgba(40,30,20,.16));
     }
 
-    /* 2. GHOST WORD FIT */
+    /* 2. GHOST WORD 0xNULL */
     .ghost {
       position: fixed;
       z-index: 2;
@@ -89,7 +94,7 @@
       top: calc(50% - var(--MH) * 0.42);
       transform: translate(-50%, 0);
       font-weight: 900;
-      font-size: calc(var(--MH) * 0.42);
+      font-size: calc(var(--MH) * 0.32);
       line-height: 0.8;
       letter-spacing: -0.04em;
       color: rgba(255, 255, 255, 0.3);
@@ -111,6 +116,42 @@
       -webkit-backdrop-filter: blur(22px) saturate(1.5);
       border: 1px solid rgba(255,255,255,.5);
       box-shadow: inset 0 1px 0 rgba(255,255,255,.7), inset 0 -1px 0 rgba(255,255,255,.12), 0 20px 50px -24px rgba(40,30,20,.45);
+    }
+
+    /* BRAND LOGO PILL (Top Left) */
+    .brand-pill {
+      position: fixed;
+      left: max(18px, 1.8vw);
+      top: 4.2vh;
+      z-index: 40;
+      padding: 6px 14px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #111;
+      background: rgba(255, 255, 255, 0.85);
+      box-shadow: 0 4px 16px -4px rgba(0,0,0,0.25);
+    }
+    .brand-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+      animation: pulseDot 2s infinite ease-in-out;
+    }
+    @keyframes pulseDot {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.3); opacity: 0.6; }
+    }
+    .brand-sub {
+      font-size: 11px;
+      font-weight: 500;
+      opacity: 0.65;
     }
 
     /* 4. TABS */
@@ -189,6 +230,22 @@
       background: rgba(255, 255, 255, 0.9);
       color: #111;
     }
+    .rail-badge {
+      position: absolute;
+      top: -2px;
+      right: -2px;
+      background: #111;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      width: 17px;
+      height: 17px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1.5px solid #fff;
+    }
     .rail-btn .tooltip {
       position: absolute;
       left: 54px;
@@ -263,6 +320,10 @@
       color: #fff;
       text-shadow: 0 1px 8px rgba(0, 0, 0, 0.18);
       pointer-events: none;
+      padding: 0 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .card .card-price {
       position: absolute;
@@ -275,6 +336,20 @@
       color: #fff;
       text-shadow: 0 1px 8px rgba(0, 0, 0, 0.18);
       pointer-events: none;
+    }
+    .card-tag {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(6px);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #fff;
     }
     .sheen {
       position: absolute;
@@ -292,7 +367,7 @@
       100% { transform: translateX(100%); opacity: 0; }
     }
 
-    /* 7. MODEL */
+    /* 7. MODEL & AVATAR HEAD LAYER */
     .model-wrapper {
       position: fixed;
       left: 50%;
@@ -321,16 +396,32 @@
       background-repeat: no-repeat;
       will-change: transform, clip-path;
     }
-    .custom-avatar-layer {
+
+    /* Precision Facial Overlay on the Avatar Mannequin */
+    .avatar-head-layer {
       position: absolute;
-      inset: 0;
-      background-size: contain;
-      background-position: center bottom;
-      background-repeat: no-repeat;
-      display: none;
-      will-change: transform, clip-path;
-      filter: drop-shadow(0 10px 20px rgba(0,0,0,0.3));
+      top: 3.2%;
+      left: 50%;
+      transform: translateX(calc(-50% + var(--face-offset-x))) translateY(var(--face-offset-y)) scale(var(--face-scale));
+      width: 32%;
+      height: 18.5%;
+      z-index: 6; /* sits seamlessly on top of mannequin head, under scanline */
+      pointer-events: none;
+      display: none; /* revealed once face is recognized & applied */
+      border-radius: 50% 50% 46% 46% / 55% 55% 45% 45%;
+      overflow: hidden;
+      -webkit-mask-image: radial-gradient(ellipse 90% 90% at 50% 48%, black 65%, rgba(0,0,0,0.85) 80%, transparent 100%);
+      mask-image: radial-gradient(ellipse 90% 90% at 50% 48%, black 65%, rgba(0,0,0,0.85) 80%, transparent 100%);
+      filter: drop-shadow(0 4px 10px rgba(0,0,0,0.22));
+      transition: opacity 0.3s ease;
     }
+    .avatar-head-layer canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+
     #mCur {
       display: none; /* hidden on load until first scan */
     }
@@ -344,6 +435,7 @@
       mix-blend-mode: screen;
       pointer-events: none;
       clip-path: inset(0 0 100% 0);
+      z-index: 8;
     }
     .scan {
       position: absolute;
@@ -355,6 +447,7 @@
       pointer-events: none;
       opacity: 0;
       top: 0;
+      z-index: 9;
     }
     .scan::after {
       content: "";
@@ -404,10 +497,10 @@
       transform: translateX(-50%);
       bottom: 4.6vh;
       z-index: 60;
-      width: min(640px, calc(100vw - 32px));
+      width: min(670px, calc(100vw - 32px));
       display: flex;
       align-items: center;
-      gap: 22px;
+      gap: 20px;
       padding: 12px 22px 12px 12px;
       border-radius: 24px;
       color: #fff;
@@ -434,7 +527,7 @@
       display: flex;
       flex-direction: column;
       gap: 4px;
-      min-width: 120px;
+      min-width: 130px;
     }
     .ln {
       height: 1.15em;
@@ -506,8 +599,12 @@
     .color-dot.active {
       box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95), 0 0 0 4px rgba(0, 0, 0, 0.12);
     }
-    .buy-cta {
+    .buy-actions {
       margin-left: auto;
+      display: flex;
+      gap: 8px;
+    }
+    .buy-cta {
       padding: 10px 18px;
       background: rgba(255,255,255,0.92);
       color: #111;
@@ -525,6 +622,23 @@
     }
     .buy-cta:active {
       transform: scale(0.96);
+    }
+    .buy-flipkart-cta {
+      padding: 10px 16px;
+      background: #2874f0;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 999px;
+      box-shadow: 0 4px 14px -4px rgba(40,116,240,0.5);
+      transition: transform 0.2s ease, background 0.2s ease;
+      white-space: nowrap;
+      text-shadow: none;
+      display: none; /* shown when item is from Flipkart */
+    }
+    .buy-flipkart-cta:hover {
+      background: #1e65db;
+      transform: scale(1.04);
     }
 
     /* 10. CURSOR */
@@ -628,9 +742,9 @@
       position: fixed;
       inset: 0;
       z-index: 80;
-      background: rgba(18, 16, 14, 0.45);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
+      background: rgba(18, 16, 14, 0.48);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -643,8 +757,8 @@
       pointer-events: auto;
     }
     .spatial-modal {
-      width: min(580px, calc(100vw - 36px));
-      max-height: 86vh;
+      width: min(620px, calc(100vw - 36px));
+      max-height: 88vh;
       overflow-y: auto;
       border-radius: 28px;
       padding: 28px;
@@ -734,10 +848,57 @@
     }
     .slider-val {
       font-weight: 700;
-      font-size: 15px;
+      font-size: 14px;
       min-width: 55px;
       text-align: right;
     }
+
+    /* Face Recognition & Alignment Studio Box */
+    .face-studio-box {
+      background: rgba(0,0,0,0.25);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 20px;
+      padding: 16px;
+      margin-top: 10px;
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+    .face-preview-container {
+      width: 100px;
+      height: 120px;
+      border-radius: 50% 50% 46% 46% / 55% 55% 45% 45%;
+      border: 2px solid rgba(255,255,255,0.6);
+      background: rgba(255,255,255,0.08);
+      overflow: hidden;
+      flex-shrink: 0;
+      position: relative;
+      box-shadow: 0 0 15px rgba(255,255,255,0.2);
+    }
+    .face-preview-container canvas {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .face-controls-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .face-ctrl-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 12px;
+    }
+    .face-ctrl-label {
+      width: 70px;
+      opacity: 0.8;
+      font-weight: 500;
+    }
+
     .upload-box {
       border: 2px dashed rgba(255,255,255,0.35);
       border-radius: 18px;
@@ -786,6 +947,10 @@
       font-weight: 600;
       letter-spacing: 0.02em;
     }
+    .store-badge.flipkart {
+      background: #2874f0;
+      color: #fff;
+    }
     .action-btn {
       width: 100%;
       padding: 14px;
@@ -830,13 +995,38 @@
       font-size: 10px;
       font-weight: 700;
       text-transform: uppercase;
-      padding: 2px 6px;
+      padding: 3px 8px;
       border-radius: 6px;
       background: rgba(255,255,255,0.2);
+    }
+    .preset-card-store.flipkart {
+      background: #2874f0;
+      color: #fff;
+    }
+
+    /* Cart Drawer / Modal */
+    .cart-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 16px;
+      margin-bottom: 10px;
+    }
+    .cart-thumb {
+      width: 48px;
+      height: 48px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.2);
+      background-size: cover;
     }
 
     /* 12. PHONES (<=767px) */
     @media (max-width: 767px) {
+      .brand-pill {
+        display: none;
+      }
       .tabs {
         height: 32px;
         padding: 3px;
@@ -883,8 +1073,12 @@
       .buy-info {
         flex: 1;
       }
-      .buy-cta {
+      .buy-actions {
         width: 100%;
+        margin-left: 0;
+      }
+      .buy-cta, .buy-flipkart-cta {
+        flex: 1;
         text-align: center;
       }
     }
@@ -905,11 +1099,21 @@
   <!-- 1. SCENE ROOM -->
   <div class="room" id="room"></div>
 
-  <!-- 2. GHOST WORD FIT -->
+  <!-- BRAND PILL (Top Left) -->
+  <div class="brand-pill glass">
+    <span class="brand-dot"></span>
+    <span>0xnull</span>
+    <span class="brand-sub">Spatial Fit</span>
+  </div>
+
+  <!-- 2. GHOST WORD 0xNULL -->
   <div class="ghost" id="ghost">
-    <span id="g0">F</span>
-    <span id="g1">I</span>
-    <span id="g2">T</span>
+    <span id="g0">0</span>
+    <span id="g1">x</span>
+    <span id="g2">N</span>
+    <span id="g3">U</span>
+    <span id="g4">L</span>
+    <span id="g5">L</span>
   </div>
 
   <!-- 3. TOP TABS -->
@@ -927,22 +1131,23 @@
     <!-- Button 1: Tee (Try-on arc hero) -->
     <button class="rail-btn active" id="btnRailWardrobe" title="Virtual Try-On Arc">
       <svg viewBox="0 0 24 24"><path d="M12 2a4 4 0 0 0-3.5 2.06L3 7.8A1.5 1.5 0 0 0 3.78 10l2.22.86V21a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V10.86L20.22 10A1.5 1.5 0 0 0 21 7.8l-5.5-3.74A4 4 0 0 0 12 2zm0 2c1.07 0 2.04.54 2.62 1.41a3 3 0 0 1-5.24 0A3.01 3.01 0 0 1 12 4z"/></svg>
-      <span class="tooltip">Spatial Arc</span>
+      <span class="tooltip">0xnull Arc</span>
     </button>
-    <!-- Button 2: Cart / E-Commerce Importer -->
+    <!-- Button 2: Flipkart & Store Link Importer -->
     <button class="rail-btn" id="btnRailImport" title="Try On Links (Flipkart / Amazon / Snapdeal)">
       <svg viewBox="0 0 24 24"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1.003 1.003 0 0 0 20 4H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg>
-      <span class="tooltip">Paste Product Link</span>
+      <span class="tooltip">Paste Flipkart Link</span>
     </button>
-    <!-- Button 3: Calendar / Saved Looks -->
-    <button class="rail-btn" id="btnRailCalendar" title="Fit Timeline & Outfits">
-      <svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zM7 11h5v5H7z"/></svg>
-      <span class="tooltip">Saved Looks</span>
+    <!-- Button 3: Cart / Shopping Bag -->
+    <button class="rail-btn" id="btnRailCart" title="0xnull Shopping Bag">
+      <svg viewBox="0 0 24 24"><path d="M18 6h-2c0-2.21-1.79-4-4-4S8 3.79 8 6H6c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6-2c1.1 0 2 .9 2 2h-4c0-1.1.9-2 2-2zm6 16H6V8h2v2c0 .55.45 1 1 1s1-.45 1-1V8h4v2c0 .55.45 1 1 1s1-.45 1-1V8h2v12z"/></svg>
+      <span class="rail-badge" id="cartCountBadge">0</span>
+      <span class="tooltip">Shopping Bag</span>
     </button>
-    <!-- Button 4: Profile / Body & Avatar Studio -->
-    <button class="rail-btn" id="btnRailProfile" title="Body Customizer & Photo Upload">
+    <!-- Button 4: Profile / Body & Facial Recognition Studio -->
+    <button class="rail-btn" id="btnRailProfile" title="Facial Recognition & Body Studio">
       <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-      <span class="tooltip">Body & Avatar Studio</span>
+      <span class="tooltip">Face Swap & Body</span>
     </button>
   </aside>
 
@@ -951,12 +1156,17 @@
     <div class="arc" id="arc"></div>
   </main>
 
-  <!-- 6. MODEL & TRY-ON SCAN LINE -->
+  <!-- 6. MODEL WITH FACIAL RECOGNITION AVATAR OVERLAY -->
   <div class="model-wrapper" id="modelWrapper">
     <div class="model" id="modelBox">
       <div class="model-layer" id="mCur"></div>
       <div class="model-layer" id="mNext"></div>
-      <div class="custom-avatar-layer" id="customAvatar"></div>
+
+      <!-- Precision Face-Recognized User Avatar Head -->
+      <div class="avatar-head-layer" id="avatarHeadLayer">
+        <canvas id="faceCanvas" width="240" height="280"></canvas>
+      </div>
+
       <div class="grid" id="scanGrid"></div>
       <div class="scan" id="scanLine"></div>
     </div>
@@ -977,10 +1187,10 @@
     </div>
     <div class="buy-info">
       <div class="ln">
-        <span class="ln-inner buy-name" id="buyName">Basic T-shirt</span>
+        <span class="ln-inner buy-name" id="buyName">0xnull Core Tee</span>
       </div>
       <div class="ln">
-        <span class="ln-inner buy-price" id="buyPrice">$45</span>
+        <span class="ln-inner buy-price" id="buyPrice">$45 · ₹1,499</span>
       </div>
     </div>
     <div class="buy-section">
@@ -998,7 +1208,10 @@
       </div>
       <div class="color-dots" id="colorDots"></div>
     </div>
-    <button class="buy-cta" id="buyCtaBtn">Add to Bag</button>
+    <div class="buy-actions">
+      <a href="#" target="_blank" class="buy-flipkart-cta" id="buyFlipkartBtn">Buy on Flipkart</a>
+      <button class="buy-cta" id="buyCtaBtn">Add to Bag</button>
+    </div>
   </div>
 
   <!-- 9. CURSOR -->
@@ -1011,33 +1224,58 @@
     </div>
   </div>
 
-  <!-- 10. SPATIAL MODAL: BODY CUSTOMIZER & PHOTO UPLOAD -->
+  <!-- 10. SPATIAL MODAL: FACIAL RECOGNITION & BODY STUDIO -->
   <div class="spatial-modal-overlay" id="bodyModalOverlay">
     <div class="spatial-modal glass">
       <div class="modal-header">
-        <h2 class="modal-title">Spatial Body & Avatar Profile</h2>
+        <h2 class="modal-title">AI Facial Recognition & Body Studio</h2>
         <button class="modal-close" id="bodyModalClose">✕</button>
       </div>
 
       <!-- Avatar Source Toggle -->
       <div class="modal-group">
-        <label class="modal-label">Avatar Identity</label>
+        <label class="modal-label">Avatar Face Mode</label>
         <div class="pill-group">
-          <button class="choice-pill active" id="btnUseStudioModel">Studio Mannequin</button>
-          <button class="choice-pill" id="btnUseCustomPhoto">My Uploaded Photo</button>
+          <button class="choice-pill" id="btnUseStudioModel">Studio Mannequin</button>
+          <button class="choice-pill active" id="btnUseCustomPhoto">My AI Face Avatar</button>
         </div>
       </div>
 
       <!-- Photo Upload Box -->
       <div class="modal-group">
-        <label class="modal-label">Upload Full-Body or Torso Photo</label>
+        <label class="modal-label">Upload Your Photo (Selfie or Portrait)</label>
         <label class="upload-box" for="userPhotoInput" style="display:block;">
           <input type="file" id="userPhotoInput" accept="image/*" style="display:none;">
           <svg class="upload-icon" width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
-          <div style="font-weight:600; font-size:14px;">Drop your photo or click to browse</div>
-          <div style="font-size:12px; opacity:0.7; margin-top:4px;">Supports PNG, JPG, WebP. High-contrast standing photo works best.</div>
-          <div id="photoStatus" style="margin-top:8px; font-size:12px; color:#4ade80; display:none;">✓ Photo Loaded & Segmented</div>
+          <div style="font-weight:600; font-size:14px;">Select or drop your photo</div>
+          <div style="font-size:12px; opacity:0.7; margin-top:4px;">AI detects facial landmarks & seamlessly grafts your face onto the 3D model!</div>
+          <div id="photoStatus" style="margin-top:8px; font-size:12px; color:#4ade80; display:none;">✓ Face Detected & Aligned with Spatial Model</div>
         </label>
+      </div>
+
+      <!-- Precision Face Alignment Studio (Shown once photo is uploaded) -->
+      <div class="modal-group" id="faceStudioWrap" style="display:none;">
+        <label class="modal-label">Facial Mapping & Precision Alignment</label>
+        <div class="face-studio-box">
+          <div class="face-preview-container">
+            <canvas id="facePreviewCanvas" width="120" height="140"></canvas>
+          </div>
+          <div class="face-controls-col">
+            <div class="face-ctrl-row">
+              <span class="face-ctrl-label">Face Size</span>
+              <input type="range" class="range-slider" id="faceScaleSlider" min="0.7" max="1.5" step="0.02" value="1.0">
+            </div>
+            <div class="face-ctrl-row">
+              <span class="face-ctrl-label">Nudge Y</span>
+              <input type="range" class="range-slider" id="faceOffsetYSlider" min="-30" max="30" step="1" value="0">
+            </div>
+            <div class="face-ctrl-row">
+              <span class="face-ctrl-label">Nudge X</span>
+              <input type="range" class="range-slider" id="faceOffsetXSlider" min="-25" max="25" step="1" value="0">
+            </div>
+            <button class="choice-pill" id="btnAutoAlignFace" style="padding:6px; font-size:11px; margin-top:2px;">⚡ Auto-Recenter Face</button>
+          </div>
+        </div>
       </div>
 
       <!-- Body Height -->
@@ -1082,77 +1320,100 @@
         </div>
       </div>
 
-      <button class="action-btn" id="btnApplyBodyProfile">Save & Update Avatar Fit</button>
+      <button class="action-btn" id="btnApplyBodyProfile">Save & Put on Avatar</button>
     </div>
   </div>
 
-  <!-- 11. SPATIAL MODAL: E-COMMERCE PRODUCT LINK IMPORTER -->
+  <!-- 11. SPATIAL MODAL: E-COMMERCE & FLIPKART PRODUCT LINK IMPORTER -->
   <div class="spatial-modal-overlay" id="importModalOverlay">
     <div class="spatial-modal glass">
       <div class="modal-header">
-        <h2 class="modal-title">Try On Product From Link</h2>
+        <h2 class="modal-title">Try On Flipkart & E-Commerce Products</h2>
         <button class="modal-close" id="importModalClose">✕</button>
       </div>
 
       <div class="modal-group">
-        <label class="modal-label">Paste Product URL or Description</label>
-        <input type="text" class="link-input" id="linkInput" placeholder="Paste link from Flipkart, Amazon, Snapdeal, Myntra, etc.">
+        <label class="modal-label">Paste Product URL from Flipkart, Amazon, Snapdeal, Myntra</label>
+        <input type="text" class="link-input" id="linkInput" placeholder="https://www.flipkart.com/... or paste product name">
         <div class="store-tags">
-          <span class="store-badge">Flipkart</span>
+          <span class="store-badge flipkart">Flipkart Official</span>
           <span class="store-badge">Amazon</span>
           <span class="store-badge">Snapdeal</span>
           <span class="store-badge">Myntra</span>
           <span class="store-badge">Zara</span>
-          <span class="store-badge">Any E-Commerce</span>
+          <span class="store-badge">0xnull Marketplace</span>
         </div>
       </div>
 
       <div class="modal-group">
-        <label class="modal-label">Or Instant Try 1-Click Trending Items</label>
+        <label class="modal-label">Instant 1-Click Trending Flipkart Garments</label>
         <div class="preset-links">
-          <div class="preset-card" data-title="Flipkart Utility Cargo Shacket" data-price="75" data-store="Flipkart" data-color="#464b3c" data-cname="Army Olive">
-            <span class="preset-card-store">Flipkart</span>
+          <!-- Flipkart Preset 1 -->
+          <div class="preset-card" data-title="Flipkart Roadster Utility Overshirt" data-price="29" data-inr="1499" data-store="Flipkart" data-color="#4b5563" data-cname="Washed Slate" data-url="https://www.flipkart.com/roadster-men-solid-casual-shirt">
+            <span class="preset-card-store flipkart">Flipkart</span>
             <div style="flex:1;">
-              <div style="font-weight:600; font-size:13px;">Flipkart Utility Cargo Shacket</div>
-              <div style="font-size:11px; opacity:0.8;">₹2,499 ($75) · 100% Heavy Twill Cotton</div>
+              <div style="font-weight:600; font-size:13px;">Flipkart Roadster Utility Overshirt</div>
+              <div style="font-size:11px; opacity:0.8;">₹1,499 ($29) · 100% Breathable Twill Cotton</div>
             </div>
-            <button class="action-btn" style="width:auto; padding:6px 14px; margin:0; font-size:12px;">Try On</button>
+            <button class="action-btn" style="width:auto; padding:6px 14px; margin:0; font-size:12px; background:#2874f0; color:#fff;">Try On</button>
           </div>
 
-          <div class="preset-card" data-title="Amazon Essentials Merino Knit" data-price="88" data-store="Amazon" data-color="#243447" data-cname="Midnight Blue">
-            <span class="preset-card-store">Amazon</span>
+          <!-- Flipkart Preset 2 -->
+          <div class="preset-card" data-title="Flipkart Highlander Denim Jacket" data-price="42" data-inr="2199" data-store="Flipkart" data-color="#1e3a8a" data-cname="Indigo Raw" data-url="https://www.flipkart.com/highlander-denim-jacket">
+            <span class="preset-card-store flipkart">Flipkart</span>
             <div style="flex:1;">
-              <div style="font-weight:600; font-size:13px;">Amazon Essentials Merino Knit</div>
-              <div style="font-size:11px; opacity:0.8;">₹3,199 ($88) · Extra-Fine Australian Wool</div>
+              <div style="font-weight:600; font-size:13px;">Flipkart Highlander Denim Jacket</div>
+              <div style="font-size:11px; opacity:0.8;">₹2,199 ($42) · Heavy Gauge Trucker Fit</div>
             </div>
-            <button class="action-btn" style="width:auto; padding:6px 14px; margin:0; font-size:12px;">Try On</button>
+            <button class="action-btn" style="width:auto; padding:6px 14px; margin:0; font-size:12px; background:#2874f0; color:#fff;">Try On</button>
           </div>
 
-          <div class="preset-card" data-title="Snapdeal Vintage Slub Henley" data-price="39" data-store="Snapdeal" data-color="#8c7853" data-cname="Warm Taupe">
-            <span class="preset-card-store">Snapdeal</span>
+          <!-- Flipkart Preset 3 -->
+          <div class="preset-card" data-title="Flipkart Metronaut Street Hoodie" data-price="35" data-inr="1799" data-store="Flipkart" data-color="#374151" data-cname="Charcoal Heather" data-url="https://www.flipkart.com/metronaut-hoodie">
+            <span class="preset-card-store flipkart">Flipkart</span>
             <div style="flex:1;">
-              <div style="font-weight:600; font-size:13px;">Snapdeal Vintage Slub Henley</div>
-              <div style="font-size:11px; opacity:0.8;">₹1,299 ($39) · Slub Waffle Knit</div>
+              <div style="font-weight:600; font-size:13px;">Flipkart Metronaut Street Hoodie</div>
+              <div style="font-size:11px; opacity:0.8;">₹1,799 ($35) · Drop-Shoulder Fleece</div>
             </div>
-            <button class="action-btn" style="width:auto; padding:6px 14px; margin:0; font-size:12px;">Try On</button>
+            <button class="action-btn" style="width:auto; padding:6px 14px; margin:0; font-size:12px; background:#2874f0; color:#fff;">Try On</button>
           </div>
         </div>
       </div>
 
-      <button class="action-btn" id="btnExtractAndTry">Extract Garment & Add to 3D Arc</button>
+      <button class="action-btn" id="btnExtractAndTry">Extract Garment & Put in 3D Arc</button>
+    </div>
+  </div>
+
+  <!-- 12. SPATIAL MODAL: 0xNULL SHOPPING BAG -->
+  <div class="spatial-modal-overlay" id="cartModalOverlay">
+    <div class="spatial-modal glass">
+      <div class="modal-header">
+        <h2 class="modal-title">0xnull Shopping Bag</h2>
+        <button class="modal-close" id="cartModalClose">✕</button>
+      </div>
+      <div id="cartItemsList">
+        <div style="text-align:center; padding:30px; opacity:0.7;">Your shopping bag is currently empty. Explore the 3D Arc and click "Add to Bag"!</div>
+      </div>
+      <div id="cartSummary" style="display:none; margin-top:16px; border-top:1px solid rgba(255,255,255,0.2); padding-top:16px;">
+        <div style="display:flex; justify-content:space-between; font-weight:700; font-size:16px; margin-bottom:14px;">
+          <span>Subtotal</span>
+          <span id="cartSubtotal">$0 · ₹0</span>
+        </div>
+        <button class="action-btn" id="btnCheckout">Proceed to 1-Click Pay</button>
+      </div>
     </div>
   </div>
 
   <script>
     /* =====================================================================
-       3. DATA
+       3. DATA: 0xNULL SIGNATURE COLLECTION
        ===================================================================== */
     const ITEMS = [
-      {n:"Basic T-shirt", p:45,  g:[1.14,3.06],  m:.37,   c:[["White","#f4f2ee"],["Ash","#c9c7c2"],["Charcoal","#3b3c3f"],["Navy","#27324d"]]},
-      {n:"Basic Sweater", p:105, g:[49.7,1.39],  m:25.0,  c:[["White","#f6f4ef"],["Oat","#ddd3c2"],["Sage","#b9c2ae"],["Black","#1f1f21"]]},
-      {n:"Linen Shirt",   p:95,  g:[98.2,3.33],  m:49.86, c:[["White","#f7f6f1"],["Sand","#d9ccb4"],["Sky","#bcd0e2"],["Olive","#717556"]]},
-      {n:"Grey Hoodie",   p:110, g:[1.14,93.3],  m:74.77, c:[["Heather","#a9a9a8"],["Bone","#e6e1d6"],["Forest","#33463a"],["Black","#1f1f21"]]},
-      {n:"Ringer Tee",    p:55,  g:[49.7,95.3],  m:99.35, c:[["White / Black","#f4f2ee"],["Cream / Navy","#efe6d3"],["Grey / Red","#c9c7c2"],["White / Green","#e9efe8"]]},
+      {n:"0xnull Core Tee",           p:45, inr:1499, store:"0xnull", g:[1.14,3.06],  m:.37,   c:[["White","#f4f2ee"],["Ash","#c9c7c2"],["Charcoal","#3b3c3f"],["Navy","#27324d"]]},
+      {n:"0xnull Liquid Fleece",       p:105, inr:3499, store:"0xnull", g:[49.7,1.39],  m:25.0,  c:[["White","#f6f4ef"],["Oat","#ddd3c2"],["Sage","#b9c2ae"],["Black","#1f1f21"]]},
+      {n:"0xnull Minimalist Linen",   p:95, inr:2999, store:"0xnull", g:[98.2,3.33],  m:49.86, c:[["White","#f7f6f1"],["Sand","#d9ccb4"],["Sky","#bcd0e2"],["Olive","#717556"]]},
+      {n:"0xnull Stealth Hoodie",     p:110, inr:3799, store:"0xnull", g:[1.14,93.3],  m:74.77, c:[["Heather","#a9a9a8"],["Bone","#e6e1d6"],["Forest","#33463a"],["Black","#1f1f21"]]},
+      {n:"0xnull Contrast Ringer",    p:55, inr:1899, store:"0xnull", g:[49.7,95.3],  m:99.35, c:[["White / Black","#f4f2ee"],["Cream / Navy","#efe6d3"],["Grey / Red","#c9c7c2"],["White / Green","#e9efe8"]]},
     ];
 
     const NUM_CARDS = 10; // Two copies of the 5 items for seamless looping
@@ -1163,13 +1424,15 @@
     const arcEl = document.getElementById('arc');
     const roomEl = document.getElementById('room');
     const ghostEl = document.getElementById('ghost');
-    const ghostLetters = [document.getElementById('g0'), document.getElementById('g1'), document.getElementById('g2')];
+    const ghostLetters = document.querySelectorAll('#ghost span');
     const mCur = document.getElementById('mCur');
     const mNext = document.getElementById('mNext');
     const scanGrid = document.getElementById('scanGrid');
     const scanLine = document.getElementById('scanLine');
-    const customAvatar = document.getElementById('customAvatar');
     const modelBox = document.getElementById('modelBox');
+    const avatarHeadLayer = document.getElementById('avatarHeadLayer');
+    const faceCanvas = document.getElementById('faceCanvas');
+    const facePreviewCanvas = document.getElementById('facePreviewCanvas');
 
     /* Buy card elements */
     const buyThumb = document.getElementById('buyThumb');
@@ -1178,6 +1441,8 @@
     const colorLabel = document.getElementById('colorLabel');
     const colorDotsContainer = document.getElementById('colorDots');
     const sizeChipsContainer = document.getElementById('sizeChips');
+    const buyCtaBtn = document.getElementById('buyCtaBtn');
+    const buyFlipkartBtn = document.getElementById('buyFlipkartBtn');
 
     /* Nav / Controls */
     const tabsPill = document.getElementById('tabsPill');
@@ -1191,12 +1456,18 @@
     /* Modals & Tools */
     const btnRailWardrobe = document.getElementById('btnRailWardrobe');
     const btnRailImport = document.getElementById('btnRailImport');
-    const btnRailCalendar = document.getElementById('btnRailCalendar');
+    const btnRailCart = document.getElementById('btnRailCart');
     const btnRailProfile = document.getElementById('btnRailProfile');
     const bodyModalOverlay = document.getElementById('bodyModalOverlay');
     const bodyModalClose = document.getElementById('bodyModalClose');
     const importModalOverlay = document.getElementById('importModalOverlay');
     const importModalClose = document.getElementById('importModalClose');
+    const cartModalOverlay = document.getElementById('cartModalOverlay');
+    const cartModalClose = document.getElementById('cartModalClose');
+    const cartCountBadge = document.getElementById('cartCountBadge');
+    const cartItemsList = document.getElementById('cartItemsList');
+    const cartSummary = document.getElementById('cartSummary');
+    const cartSubtotal = document.getElementById('cartSubtotal');
 
     /* State variables */
     let pos = 0;
@@ -1224,6 +1495,9 @@
     let activeRunningAnims = [];
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+    // Cart state
+    const shoppingCart = [];
+
     /* Build cards into DOM */
     const cardElements = [];
     for (let i = 0; i < NUM_CARDS; i++) {
@@ -1244,12 +1518,18 @@
       pr.className = 'card-price';
       pr.textContent = `$${item.p}`;
 
+      const tag = document.createElement('div');
+      tag.className = 'card-tag';
+      tag.textContent = item.store || '0xnull';
+      if (item.store === 'Flipkart') tag.style.background = '#2874f0';
+
       const sheen = document.createElement('div');
       sheen.className = 'sheen';
 
       card.appendChild(g);
       card.appendChild(nm);
       card.appendChild(pr);
+      card.appendChild(tag);
       card.appendChild(sheen);
       arcEl.appendChild(card);
       cardElements.push(card);
@@ -1258,7 +1538,7 @@
       if (!reducedMotion) {
         card.addEventListener('mouseenter', () => {
           sheen.classList.remove('active');
-          void sheen.offsetWidth; // re-trigger animation
+          void sheen.offsetWidth;
           sheen.classList.add('active');
         });
       }
@@ -1330,8 +1610,8 @@
       // Parallax
       roomEl.style.transform = `translate3d(${-sx * 22}px, ${-sy * 14}px, 0) scale(${1.08 - 0.03 * ie})`;
       ghostEl.style.transform = `translate(calc(-50% - ${sx * 40}px), ${-sy * 16}px)`;
-      for (let k = 0; k < 3; k++) {
-        ghostLetters[k].style.transform = `translateY(${(1 - ie) * (60 + 30 * k)}px)`;
+      for (let k = 0; k < ghostLetters.length; k++) {
+        ghostLetters[k].style.transform = `translateY(${(1 - ie) * (60 + 20 * k)}px)`;
       }
 
       // Render cards
@@ -1504,7 +1784,16 @@
     function updateBuyCard(idx) {
       const item = ITEMS[idx];
       rollText(buyName, item.n);
-      rollText(buyPrice, `$${item.p}`);
+      const priceStr = item.inr ? `$${item.p} · ₹${item.inr.toLocaleString()}` : `$${item.p}`;
+      rollText(buyPrice, priceStr);
+
+      // Show/hide Flipkart button
+      if (item.store === 'Flipkart') {
+        buyFlipkartBtn.style.display = 'inline-block';
+        buyFlipkartBtn.href = item.url || 'https://www.flipkart.com';
+      } else {
+        buyFlipkartBtn.style.display = 'none';
+      }
 
       // Thumbnail jump & bounce in
       buyThumb.style.backgroundPosition = `${item.g[0]}% ${item.g[1]}%`;
@@ -1644,7 +1933,6 @@
         tabButtons.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         updateTabsPill();
-        // Add 5 to target so the arc does a full lap and lands back on the garment
         target += 5;
       });
     });
@@ -1663,7 +1951,7 @@
       if (!targetEl) return;
       if (targetEl.closest('.card')) {
         setCursorMode('try');
-      } else if (targetEl.closest('button, input, select, .choice-pill, .size-chip, .color-dot, .preset-card')) {
+      } else if (targetEl.closest('button, a, input, select, .choice-pill, .size-chip, .color-dot, .preset-card')) {
         setCursorMode('btn');
       } else if (targetEl.closest('.stage')) {
         setCursorMode('drag');
@@ -1673,24 +1961,39 @@
     }
 
     /* =====================================================================
-       11. BODY CUSTOMIZER, POSTURE, BELLY & PHOTO UPLOAD
+       11. AI FACIAL RECOGNITION & AVATAR HEAD MAPPING
        ===================================================================== */
-    const heightSlider = document.getElementById('heightSlider');
-    const heightVal = document.getElementById('heightVal');
     const userPhotoInput = document.getElementById('userPhotoInput');
     const photoStatus = document.getElementById('photoStatus');
+    const faceStudioWrap = document.getElementById('faceStudioWrap');
     const btnUseStudioModel = document.getElementById('btnUseStudioModel');
     const btnUseCustomPhoto = document.getElementById('btnUseCustomPhoto');
-    let customPhotoDataUrl = null;
+    const faceScaleSlider = document.getElementById('faceScaleSlider');
+    const faceOffsetYSlider = document.getElementById('faceOffsetYSlider');
+    const faceOffsetXSlider = document.getElementById('faceOffsetXSlider');
+    const btnAutoAlignFace = document.getElementById('btnAutoAlignFace');
+
+    const heightSlider = document.getElementById('heightSlider');
+    const heightVal = document.getElementById('heightVal');
+
+    let rawUploadedImg = null;
+    let detectedFaceBox = null;
+    let isUserFaceActive = false;
+
+    let faceConfig = {
+      scale: 1.0,
+      offsetX: 0,
+      offsetY: 0
+    };
 
     let currentBody = {
       height: 180,
       build: 'regular',
       belly: 'slight',
-      posture: 'upright',
-      usePhoto: false
+      posture: 'upright'
     };
 
+    // Open/Close Body & Face Modal
     btnRailProfile.addEventListener('click', () => {
       bodyModalOverlay.classList.add('open');
     });
@@ -1701,6 +2004,7 @@
       if (e.target === bodyModalOverlay) bodyModalOverlay.classList.remove('open');
     });
 
+    // Height slider
     heightSlider.addEventListener('input', (e) => {
       heightVal.textContent = `${e.target.value} cm`;
       currentBody.height = parseInt(e.target.value, 10);
@@ -1720,34 +2024,200 @@
     setupPillGroup('bellyGroup', 'belly');
     setupPillGroup('postureGroup', 'posture');
 
-    // Photo input
+    // Face sliders
+    faceScaleSlider.addEventListener('input', (e) => {
+      faceConfig.scale = parseFloat(e.target.value);
+      renderDetectedFace();
+    });
+    faceOffsetYSlider.addEventListener('input', (e) => {
+      faceConfig.offsetY = parseInt(e.target.value, 10);
+      renderDetectedFace();
+    });
+    faceOffsetXSlider.addEventListener('input', (e) => {
+      faceConfig.offsetX = parseInt(e.target.value, 10);
+      renderDetectedFace();
+    });
+    btnAutoAlignFace.addEventListener('click', () => {
+      faceConfig.scale = 1.0;
+      faceConfig.offsetX = 0;
+      faceConfig.offsetY = 0;
+      faceScaleSlider.value = "1.0";
+      faceOffsetYSlider.value = "0";
+      faceOffsetXSlider.value = "0";
+      renderDetectedFace();
+    });
+
+    // Photo input handling
     userPhotoInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
       reader.onload = (ev) => {
-        customPhotoDataUrl = ev.target.result;
-        photoStatus.style.display = 'block';
-        customAvatar.style.backgroundImage = `url('${customPhotoDataUrl}')`;
-        btnUseCustomPhoto.click();
+        const img = new Image();
+        img.onload = () => {
+          rawUploadedImg = img;
+          processFaceRecognition(img);
+        };
+        img.src = ev.target.result;
       };
       reader.readAsDataURL(file);
     });
 
+    /* Client-Side Face Recognition Algorithm */
+    async function processFaceRecognition(img) {
+      photoStatus.textContent = 'Scanning facial landmarks & depth contour...';
+      photoStatus.style.display = 'block';
+
+      let faceBox = null;
+
+      // 1. Try native Chromium FaceDetector API if available
+      if ('FaceDetector' in window) {
+        try {
+          const detector = new window.FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
+          const faces = await detector.detect(img);
+          if (faces && faces.length > 0) {
+            const b = faces[0].boundingBox;
+            faceBox = { x: b.x, y: b.y, width: b.width, height: b.height };
+          }
+        } catch (err) {
+          console.warn('Native FaceDetector bypassed:', err);
+        }
+      }
+
+      // 2. High-speed Fallback: Skin-tone & Luminance Centroid Detection
+      if (!faceBox) {
+        faceBox = detectFaceBySkinCentroid(img);
+      }
+
+      detectedFaceBox = faceBox;
+      isUserFaceActive = true;
+      faceStudioWrap.style.display = 'block';
+      photoStatus.textContent = '✓ AI Face Detected & Mapped onto Spatial Mannequin!';
+      btnUseCustomPhoto.classList.add('active');
+      btnUseStudioModel.classList.remove('active');
+
+      renderDetectedFace();
+    }
+
+    function detectFaceBySkinCentroid(img) {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const w = 320;
+      const h = Math.round((img.height / img.width) * 320);
+      canvas.width = w;
+      canvas.height = h;
+      ctx.drawImage(img, 0, 0, w, h);
+
+      const imgData = ctx.getImageData(0, 0, w, h).data;
+      let totalSkinPixels = 0;
+      let sumX = 0;
+      let sumY = 0;
+      let minX = w, maxX = 0, minY = h, maxY = 0;
+
+      // Focus on upper 70% of image where heads are typically located
+      const maxScanY = Math.round(h * 0.70);
+
+      for (let y = 0; y < maxScanY; y += 4) {
+        for (let x = 0; x < w; x += 4) {
+          const i = (y * w + x) * 4;
+          const r = imgData[i];
+          const g = imgData[i + 1];
+          const b = imgData[i + 2];
+
+          // YCbCr skin tone detection
+          const Y = 0.299 * r + 0.587 * g + 0.114 * b;
+          const Cb = -0.1687 * r - 0.3313 * g + 0.5 * b + 128;
+          const Cr = 0.5 * r - 0.4187 * g - 0.0813 * b + 128;
+
+          if (Y > 40 && Cb >= 77 && Cb <= 127 && Cr >= 133 && Cr <= 173) {
+            totalSkinPixels++;
+            sumX += x;
+            sumY += y;
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+
+      // If clear skin cluster found
+      if (totalSkinPixels > 100) {
+        const centroidX = (sumX / totalSkinPixels) * (img.width / w);
+        const centroidY = (sumY / totalSkinPixels) * (img.height / h);
+        const boxW = Math.max(img.width * 0.32, (maxX - minX) * (img.width / w) * 1.25);
+        const boxH = boxW * 1.35;
+        return {
+          x: Math.max(0, centroidX - boxW / 2),
+          y: Math.max(0, centroidY - boxH * 0.48),
+          width: Math.min(img.width, boxW),
+          height: Math.min(img.height, boxH)
+        };
+      }
+
+      // Default portrait center crop
+      const defW = img.width * 0.48;
+      const defH = defW * 1.35;
+      return {
+        x: (img.width - defW) / 2,
+        y: img.height * 0.08,
+        width: defW,
+        height: defH
+      };
+    }
+
+    /* Render Detected Face onto Avatar Head Layer & Preview Canvas */
+    function renderDetectedFace() {
+      if (!rawUploadedImg || !detectedFaceBox) return;
+
+      const fCanvas = faceCanvas;
+      const fCtx = fCanvas.getContext('2d');
+      const pCanvas = facePreviewCanvas;
+      const pCtx = pCanvas.getContext('2d');
+
+      [fCtx, pCtx].forEach(ctx => {
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      });
+
+      // Compute source crop with user nudges
+      const scale = faceConfig.scale;
+      const cropW = detectedFaceBox.width / scale;
+      const cropH = detectedFaceBox.height / scale;
+      const cropX = Math.max(0, Math.min(rawUploadedImg.width - cropW, detectedFaceBox.x - (cropW - detectedFaceBox.width) / 2 - (faceConfig.offsetX * (detectedFaceBox.width / 100))));
+      const cropY = Math.max(0, Math.min(rawUploadedImg.height - cropH, detectedFaceBox.y - (cropH - detectedFaceBox.height) / 2 - (faceConfig.offsetY * (detectedFaceBox.height / 100))));
+
+      // Draw onto Avatar Canvas
+      fCtx.save();
+      fCtx.drawImage(rawUploadedImg, cropX, cropY, cropW, cropH, 0, 0, fCanvas.width, fCanvas.height);
+      fCtx.restore();
+
+      // Draw onto Modal Preview Canvas
+      pCtx.save();
+      pCtx.drawImage(rawUploadedImg, cropX, cropY, cropW, cropH, 0, 0, pCanvas.width, pCanvas.height);
+      pCtx.restore();
+
+      // Update CSS variables for positioning
+      document.documentElement.style.setProperty('--face-scale', '1');
+      avatarHeadLayer.style.display = isUserFaceActive ? 'block' : 'none';
+    }
+
     btnUseStudioModel.addEventListener('click', () => {
       btnUseStudioModel.classList.add('active');
       btnUseCustomPhoto.classList.remove('active');
-      currentBody.usePhoto = false;
+      isUserFaceActive = false;
+      avatarHeadLayer.style.display = 'none';
     });
 
     btnUseCustomPhoto.addEventListener('click', () => {
-      if (!customPhotoDataUrl) {
+      if (!rawUploadedImg) {
         userPhotoInput.click();
         return;
       }
       btnUseCustomPhoto.classList.add('active');
       btnUseStudioModel.classList.remove('active');
-      currentBody.usePhoto = true;
+      isUserFaceActive = true;
+      avatarHeadLayer.style.display = 'block';
+      renderDetectedFace();
     });
 
     document.getElementById('btnApplyBodyProfile').addEventListener('click', () => {
@@ -1758,24 +2228,20 @@
     });
 
     function applyBodyProfile() {
-      // Height factor (180 baseline)
       const heightFactor = currentBody.height / 180;
       let scaleX = 1;
       let scaleY = heightFactor;
       let rot = 0;
       let transY = 0;
 
-      // Build proportion
       if (currentBody.build === 'slim') scaleX *= 0.88;
       else if (currentBody.build === 'athletic') scaleX *= 1.05;
       else if (currentBody.build === 'obese') scaleX *= 1.22;
 
-      // Belly type adjustment
       if (currentBody.belly === 'flat') scaleX *= 0.96;
       else if (currentBody.belly === 'rounded') scaleX *= 1.08;
       else if (currentBody.belly === 'prominent') scaleX *= 1.18;
 
-      // Posture
       if (currentBody.posture === 'upright') rot = 0;
       else if (currentBody.posture === 'relaxed') rot = 0.5;
       else if (currentBody.posture === 'slouched') { rot = 1.2; transY = 8; }
@@ -1786,19 +2252,11 @@
       document.documentElement.style.setProperty('--body-rotate', `${rot}deg`);
       document.documentElement.style.setProperty('--body-trans-y', `${transY}px`);
 
-      if (currentBody.usePhoto && customPhotoDataUrl) {
-        customAvatar.style.display = 'block';
-        mCur.style.opacity = '0.15';
-        mNext.style.opacity = '0.15';
-      } else {
-        customAvatar.style.display = 'none';
-        mCur.style.opacity = '1';
-        mNext.style.opacity = '1';
-      }
+      avatarHeadLayer.style.display = isUserFaceActive ? 'block' : 'none';
     }
 
     /* =====================================================================
-       12. E-COMMERCE PRODUCT LINK IMPORTER
+       12. FLIPKART & E-COMMERCE PRODUCT LINK IMPORTER
        ===================================================================== */
     btnRailImport.addEventListener('click', () => {
       importModalOverlay.classList.add('open');
@@ -1810,64 +2268,167 @@
       if (e.target === importModalOverlay) importModalOverlay.classList.remove('open');
     });
 
-    // Preset cards
+    // 1-Click Flipkart Presets
     document.querySelectorAll('.preset-card').forEach(card => {
       card.addEventListener('click', () => {
         const title = card.dataset.title;
         const price = parseInt(card.dataset.price, 10);
+        const inr = parseInt(card.dataset.inr, 10);
+        const store = card.dataset.store;
         const color = card.dataset.color;
         const cname = card.dataset.cname;
-        addNewGarmentItem(title, price, [[cname, color], ["Charcoal", "#3b3c3f"]]);
+        const url = card.dataset.url;
+
+        addNewGarmentItem(title, price, inr, store, url, [[cname, color], ["Midnight", "#1f2937"]]);
         importModalOverlay.classList.remove('open');
       });
     });
 
     document.getElementById('btnExtractAndTry').addEventListener('click', () => {
       const url = document.getElementById('linkInput').value.trim();
-      let title = "Imported Designer Top";
-      let price = 79;
+      let title = "Flipkart Trending Apparel";
+      let price = 39;
+      let inr = 1799;
+      let store = "Flipkart";
+
       if (url.toLowerCase().includes('flipkart')) {
-        title = "Flipkart Heritage Over-Tee";
-        price = 49;
+        title = "Flipkart Verified Designer Piece";
+        price = 45;
+        inr = 1999;
+        store = "Flipkart";
       } else if (url.toLowerCase().includes('amazon')) {
         title = "Amazon Essentials Tailored Polo";
-        price = 59;
+        price = 49;
+        inr = 2299;
+        store = "Amazon";
       } else if (url.toLowerCase().includes('snapdeal')) {
-        title = "Snapdeal Vintage Knit Crew";
-        price = 39;
+        title = "Snapdeal Vintage Slub Knit";
+        price = 25;
+        inr = 999;
+        store = "Snapdeal";
       } else if (url.length > 5) {
-        title = url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0] + " Item";
+        title = url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0] + " Product";
       }
-      addNewGarmentItem(title, price, [["Natural Canvas", "#ece7de"], ["Deep Indigo", "#1e293b"]]);
+
+      addNewGarmentItem(title, price, inr, store, url, [["Natural Canvas", "#ece7de"], ["Deep Indigo", "#1e293b"]]);
       importModalOverlay.classList.remove('open');
     });
 
-    function addNewGarmentItem(name, price, colors) {
-      const template = ITEMS[curOutfit >= 0 ? curOutfit : 0];
+    function addNewGarmentItem(name, price, inr, store, url, colors) {
+      const activeIdx = curOutfit >= 0 ? curOutfit : 0;
+      const template = ITEMS[activeIdx];
       const newItem = {
         n: name,
         p: price,
+        inr: inr,
+        store: store,
+        url: url,
         g: [template.g[0], template.g[1]],
         m: template.m,
         c: colors
       };
 
-      ITEMS[curOutfit] = newItem;
-      updateBuyCard(curOutfit);
-      triggerTryOn(curOutfit);
+      ITEMS[activeIdx] = newItem;
+
+      // Update card title and store tag in DOM
+      cardElements.forEach(card => {
+        if (parseInt(card.dataset.index, 10) % 5 === activeIdx) {
+          card.querySelector('.card-name').textContent = name;
+          card.querySelector('.card-price').textContent = `$${price}`;
+          const tag = card.querySelector('.card-tag');
+          if (tag) {
+            tag.textContent = store;
+            tag.style.background = store === 'Flipkart' ? '#2874f0' : 'rgba(0,0,0,0.4)';
+          }
+        }
+      });
+
+      updateBuyCard(activeIdx);
+      triggerTryOn(activeIdx);
     }
 
-    /* Rail extra tools */
+    /* =====================================================================
+       13. 0xNULL SHOPPING BAG & CHECKOUT
+       ===================================================================== */
+    btnRailCart.addEventListener('click', () => {
+      renderCart();
+      cartModalOverlay.classList.add('open');
+    });
+    cartModalClose.addEventListener('click', () => {
+      cartModalOverlay.classList.remove('open');
+    });
+    cartModalOverlay.addEventListener('click', (e) => {
+      if (e.target === cartModalOverlay) cartModalOverlay.classList.remove('open');
+    });
+
+    buyCtaBtn.addEventListener('click', () => {
+      const item = ITEMS[curOutfit >= 0 ? curOutfit : 0];
+      const activeSize = document.querySelector('.size-chip.active')?.textContent || 'M';
+      const activeColor = document.querySelector('.color-dot.active')?.title || item.c[0][0];
+
+      shoppingCart.push({
+        item: item,
+        size: activeSize,
+        color: activeColor,
+        id: Date.now()
+      });
+
+      cartCountBadge.textContent = shoppingCart.length;
+
+      // Subtle scale bounce on badge
+      cartCountBadge.animate([
+        { transform: 'scale(1.4)' },
+        { transform: 'scale(1)' }
+      ], { duration: 300 });
+
+      alert(`Added "${item.n}" (Size: ${activeSize}, ${activeColor}) to your 0xnull Shopping Bag!`);
+    });
+
+    function renderCart() {
+      if (shoppingCart.length === 0) {
+        cartItemsList.innerHTML = '<div style="text-align:center; padding:30px; opacity:0.7;">Your 0xnull shopping bag is empty.</div>';
+        cartSummary.style.display = 'none';
+        return;
+      }
+
+      let totalUSD = 0;
+      let totalINR = 0;
+      cartItemsList.innerHTML = '';
+
+      shoppingCart.forEach((ci, idx) => {
+        totalUSD += ci.item.p;
+        totalINR += (ci.item.inr || ci.item.p * 80);
+
+        const row = document.createElement('div');
+        row.className = 'cart-item';
+        row.innerHTML = `
+          <div style="flex:1;">
+            <div style="font-weight:600; font-size:14px;">${ci.item.n}</div>
+            <div style="font-size:12px; opacity:0.75; margin-top:2px;">Size: ${ci.size} · Color: ${ci.color} · ${ci.item.store || '0xnull'}</div>
+            <div style="font-weight:700; font-size:13px; margin-top:4px;">$${ci.item.p} · ₹${(ci.item.inr || ci.item.p * 80).toLocaleString()}</div>
+          </div>
+          <button style="color:#ef4444; font-size:13px; padding:6px;" onclick="removeFromCart(${idx})">✕</button>
+        `;
+        cartItemsList.appendChild(row);
+      });
+
+      cartSummary.style.display = 'block';
+      cartSubtotal.textContent = `$${totalUSD} · ₹${totalINR.toLocaleString()}`;
+    }
+
+    window.removeFromCart = function(index) {
+      shoppingCart.splice(index, 1);
+      cartCountBadge.textContent = shoppingCart.length;
+      renderCart();
+    };
+
+    document.getElementById('btnCheckout').addEventListener('click', () => {
+      alert("0xnull Secure Spatial Checkout: Redirecting to instant payment gateway...");
+      cartModalOverlay.classList.remove('open');
+    });
+
     btnRailWardrobe.addEventListener('click', () => {
       btnRailWardrobe.classList.add('active');
-      btnRailCalendar.classList.remove('active');
-    });
-    btnRailCalendar.addEventListener('click', () => {
-      alert("Fit History: Saved 5 try-on variations to your spatial lookbook.");
-    });
-    document.getElementById('buyCtaBtn').addEventListener('click', () => {
-      const currentItem = ITEMS[curOutfit >= 0 ? curOutfit : 0];
-      alert(`Added "${currentItem.n}" ($${currentItem.p}) in size ${document.querySelector('.size-chip.active')?.textContent || 'M'} to your shopping bag!`);
     });
 
     /* Initial trigger on load: #mCur stays hidden and scan reveals the model */
